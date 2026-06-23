@@ -420,6 +420,93 @@ export const EXPERIENCE_DATA: PeptideExperience[] = [
   },
 ];
 
+  {
+    peptideId: 'retatrutide',
+    weeklyGuide: [
+      {
+        weekStart: 1, weekEnd: 4,
+        title: 'Introduction (2mg)',
+        description: 'Starting dose to assess GI tolerance. Triple receptor activation (GIP + GLP-1 + glucagon) begins. Appetite reduction starts within days. Nausea common but typically milder than semaglutide at equivalent weight-loss doses.',
+        tips: ['Eat slowly, avoid greasy/fatty foods', 'Stay well hydrated — glucagon component increases urination', 'Appetite reduction may be noticeable within 48 hours', 'Don\'t be alarmed by early weight loss (mostly water from glucagon effect)'],
+      },
+      {
+        weekStart: 5, weekEnd: 8,
+        title: 'First Step-Up (4mg)',
+        description: 'Meaningful weight loss begins. Phase 2 trial showed -12.9% body weight at 24 weeks at this dose. GI side effects from step-up usually resolve within a week. Glucagon receptor activation increases energy expenditure.',
+        tips: ['Prioritize protein (80-100g daily) — muscle preservation critical', 'Resistance training strongly recommended', 'Brief nausea after dose increase is normal — settles in 3-5 days', 'Track measurements weekly, not just scale weight'],
+      },
+      {
+        weekStart: 9, weekEnd: 12,
+        title: 'Accelerating (8mg)',
+        description: 'Robust fat loss phase. Phase 2 trial: -17.3% body weight at 24 weeks. Hepatic fat reduction from glucagon component (unique vs pure GLP-1 agonists). Energy expenditure increased.',
+        tips: ['Liver enzyme monitoring recommended at this dose', 'Lipid panel likely improving significantly', 'Ensure adequate vitamin/mineral supplementation', 'If GI symptoms persist, consider staying at 4mg longer'],
+      },
+      {
+        weekStart: 13, weekEnd: 999,
+        title: 'Maximum Dose (12mg)',
+        description: 'Highest tested dose. Phase 2 trial: -24.2% body weight at 48 weeks — most potent weight loss of any peptide in clinical trials. Metabolic improvements across glucose, lipids, liver fat, and blood pressure.',
+        tips: ['Not everyone needs 12mg — stay at dose that works for you', 'Regular bloodwork every 3 months (liver enzymes, lipids, glucose)', 'Continue high-protein diet and strength training', 'Watch for signs of gallbladder issues at rapid weight loss rates'],
+      },
+    ],
+    sideEffects: [
+      { name: 'Nausea', severity: 'normal', likelihood: 'common', onset: 'Each dose step-up', duration: '3-7 days', notes: 'Most common. Start at 2mg to minimize. Generally milder than semaglutide at equivalent weight loss.' },
+      { name: 'Diarrhea', severity: 'normal', likelihood: 'common', onset: 'Weeks 1-4', duration: 'Transient', notes: 'Glucagon component can cause loose stools initially. Usually resolves.' },
+      { name: 'Decreased appetite', severity: 'normal', likelihood: 'common', onset: 'Week 1+', duration: 'Ongoing (desired)', notes: 'Therapeutic effect. Ensure minimum nutrition despite low appetite.' },
+      { name: 'Increased urination', severity: 'normal', likelihood: 'common', onset: 'Week 1+', duration: 'Ongoing', notes: 'Glucagon receptor activation. Stay hydrated. Not a sign of diabetes.' },
+      { name: 'Constipation', severity: 'normal', likelihood: 'common', onset: 'Weeks 2+', duration: 'Variable', notes: 'GLP-1 slows gastric emptying. Increase fiber and water.' },
+      { name: 'Heart rate increase', severity: 'monitor', likelihood: 'uncommon', onset: 'Weeks 4+', duration: 'While on drug', notes: 'Small increases (2-4 bpm) seen in trials. Monitor if significant.' },
+      { name: 'Elevated liver enzymes', severity: 'monitor', likelihood: 'uncommon', onset: 'Weeks 8+', duration: 'While on drug', notes: 'Get bloodwork. Usually mild and transient. Reduce dose if persistent.' },
+      { name: 'Pancreatitis', severity: 'stop', likelihood: 'rare', onset: 'Any time', duration: 'N/A', notes: 'Severe abdominal pain radiating to back. Seek emergency care immediately.' },
+      { name: 'Gallbladder issues', severity: 'stop', likelihood: 'rare', onset: 'With rapid weight loss', duration: 'N/A', notes: 'Right-side abdominal pain after fatty meals. Seek medical attention.' },
+    ],
+    redFlags: [
+      'Severe abdominal pain that won\'t go away (pancreatitis risk)',
+      'Persistent vomiting, unable to keep fluids down',
+      'Right-side abdominal pain after eating (gallstones)',
+      'Significant liver enzyme elevation on bloodwork',
+      'Signs of allergic reaction (face/throat swelling)',
+      'Severe or unexplained fatigue (check liver function)',
+    ],
+    postCycleNotes: 'Phase 3 trials (TRIUMPH program) ongoing — not yet FDA-approved. Stopping will likely result in appetite return and weight regain similar to other GLP-1 agonists. Discuss long-term strategy with provider. Maintain exercise habits built during treatment.',
+  },
+  {
+    peptideId: 'glow-blend',
+    weeklyGuide: [
+      {
+        weekStart: 1, weekEnd: 2,
+        title: 'Collagen Signaling Begins',
+        description: 'Daily SubQ injection phase. GHK-Cu initiates collagen remodeling and clears damaged tissue. BPC-157 restores blood flow to repair areas. TB-500 mobilizes repair cells. No visible changes yet — working at cellular level.',
+        tips: ['Inject abdomen or thigh — rotate sites', 'Blue-green tint in syringe is normal (copper)', 'Pair with weight-loss protocol for skin laxity prevention', 'Take progress photos for comparison later'],
+      },
+      {
+        weekStart: 3, weekEnd: 4,
+        title: 'Early Tissue Response',
+        description: 'Still daily dosing. Collagen synthesis accelerating. Skin may feel slightly firmer. Wound healing noticeably faster if any cuts/scrapes. Hair and nail growth may improve.',
+        tips: ['Consistency every day is critical in this window', 'Hydrate well — collagen synthesis requires water', 'Vitamin C supplementation supports collagen building', 'Avoid sun damage to areas you\'re trying to improve'],
+      },
+      {
+        weekStart: 5, weekEnd: 8,
+        title: 'Visible Improvements',
+        description: 'Step down to 5x/week. Skin quality visibly improving — elasticity, texture, fine lines. This is when most users see noticeable changes. Collagen organization occurring during rest days.',
+        tips: ['5 days on, 2 days off allows collagen organization', 'Compare progress photos from week 1', 'Skin tightening effects compound over time', 'Plan transition to maintenance or off-cycle'],
+      },
+    ],
+    sideEffects: [
+      { name: 'Injection site blue-green staining', severity: 'normal', likelihood: 'common', onset: 'Immediate', duration: '2-3 days', notes: 'Copper from GHK-Cu. Cosmetic only — fades naturally. Rotate sites.' },
+      { name: 'Mild injection site redness', severity: 'normal', likelihood: 'common', onset: 'Immediate', duration: '15-30 minutes', notes: 'Normal SubQ reaction. Brief warmth at site.' },
+      { name: 'Mild nausea', severity: 'normal', likelihood: 'uncommon', onset: 'Post-injection', duration: 'Brief', notes: 'More common at higher doses. Take with light meal if persistent.' },
+      { name: 'Metallic taste', severity: 'monitor', likelihood: 'uncommon', onset: 'Weeks 4+', duration: 'Variable', notes: 'May indicate copper saturation. Consider reducing dose or starting off-cycle early.' },
+      { name: 'GI discomfort', severity: 'monitor', likelihood: 'uncommon', onset: 'Weeks 4+', duration: 'Variable', notes: 'Another copper accumulation signal. Reduce frequency or take break.' },
+    ],
+    redFlags: [
+      'Persistent metallic taste (copper toxicity sign — stop and take off-cycle)',
+      'Severe nausea or abdominal pain',
+      'Liver discomfort or jaundice',
+      'Allergic reaction at injection site (spreading redness, hives)',
+    ],
+    postCycleNotes: 'Collagen benefits persist well after stopping — structural changes are lasting. Take 4-8 weeks off, then restart or continue 2-3x/week maintenance. Monitor copper levels with bloodwork if running multiple cycles.',
+  },
+
 export function getExperienceForPeptide(peptideId: string): PeptideExperience | undefined {
   return EXPERIENCE_DATA.find(e => e.peptideId === peptideId);
 }

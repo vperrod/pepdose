@@ -94,7 +94,7 @@ export const PROTOCOL_TEMPLATES: ProtocolTemplate[] = [
     description: 'Retatrutide weekly titration for weight loss paired with daily GLOW blend for skin tightening during rapid fat loss.',
     peptides: [
       { peptideId: 'retatrutide' },
-      { peptideId: 'glow-blend', doseOverride: 1.2, unitOverride: 'mg' },
+      { peptideId: 'glow-blend', doseOverride: 2.8, unitOverride: 'mg' },
     ],
     durationWeeks: 24,
     category: 'Weight Loss',
