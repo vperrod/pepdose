@@ -418,8 +418,6 @@ export const EXPERIENCE_DATA: PeptideExperience[] = [
     ],
     postCycleNotes: 'Telomerase activation effects are thought to persist for months. Repeat cycle every 4-6 months. One of the safest peptides documented.',
   },
-];
-
   {
     peptideId: 'retatrutide',
     weeklyGuide: [
@@ -506,6 +504,7 @@ export const EXPERIENCE_DATA: PeptideExperience[] = [
     ],
     postCycleNotes: 'Collagen benefits persist well after stopping — structural changes are lasting. Take 4-8 weeks off, then restart or continue 2-3x/week maintenance. Monitor copper levels with bloodwork if running multiple cycles.',
   },
+];
 
 export function getExperienceForPeptide(peptideId: string): PeptideExperience | undefined {
   return EXPERIENCE_DATA.find(e => e.peptideId === peptideId);
