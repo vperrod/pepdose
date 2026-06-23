@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { differenceInWeeks, parseISO, format } from 'date-fns';
 import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle } from 'lucide-react';
 import { getProtocols, deleteProtocol, updateProtocol, updateFutureScheduledDoses } from '../db/operations';
-import { getPeptideById, type FrequencyType, type TimeOfDay } from '../data/peptides';
+import { getPeptideById } from '../data/peptides';
 import type { UserProtocol } from '../db/schema';
 
 const CATEGORY_COLORS: Record<string, string> = {
