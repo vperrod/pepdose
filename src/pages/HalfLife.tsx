@@ -203,10 +203,10 @@ export function HalfLife() {
                 fontFamily: 'monospace',
               }}
               labelFormatter={t => format(new Date(t as number), 'MMM d, HH:mm')}
-              formatter={(value: number | string, name: string) => [
-                `${Number(value).toFixed(1)}%`,
+              formatter={((value: unknown, name: string) => [
+                `${Number(value ?? 0).toFixed(1)}%`,
                 peptideGroups[name]?.name ?? name,
-              ]}
+              ]) as never}
             />
             {peptideIds.map(pid => (
               <Area
