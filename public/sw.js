@@ -1,9 +1,10 @@
-const CACHE_NAME = 'pepdose-v1';
+const CACHE_NAME = 'pepdose-v2';
+const BASE = '/pepdose/';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.svg',
+  BASE,
+  BASE + 'index.html',
+  BASE + 'manifest.json',
+  BASE + 'icons/icon-192.svg',
 ];
 
 self.addEventListener('install', (event) => {
@@ -25,6 +26,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // For navigation requests (SPA routes), serve index.html
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match(BASE + 'index.html'))
+        .then((r) => r || caches.match(BASE + 'index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -32,6 +45,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         return response;
       })
-      .catch(() => caches.match(event.request).then((r) => r || caches.match('/')))
+      .catch(() => caches.match(event.request).then((r) => r || caches.match(BASE)))
   );
 });
