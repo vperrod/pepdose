@@ -29,7 +29,7 @@ export default function App() {
   return (
     <BrowserRouter basename="/pepdose">
       <div className="noise-bg flex flex-col min-h-dvh relative">
-        <main className="flex-1 pb-24 overflow-y-auto relative z-1">
+        <main className="flex-1 pb-24 overflow-y-auto relative">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />

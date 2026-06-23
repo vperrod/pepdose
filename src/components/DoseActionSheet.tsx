@@ -70,8 +70,8 @@ export function DoseActionSheet({ dose, onClose, onUpdated }: DoseActionSheetPro
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up">
+      <div className="fixed inset-0 bg-black/60 z-[60]" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-[70] animate-slide-up">
         <div className="bg-bg-raised rounded-t-2xl max-h-[85vh] overflow-y-auto">
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-3">
