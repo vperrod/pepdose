@@ -6,6 +6,7 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getScheduledDosesInRange } from '../db/operations';
 import { getPeptideById } from '../data/peptides';
+import { DoseActionSheet } from '../components/DoseActionSheet';
 import type { ScheduledDose } from '../db/schema';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -24,6 +25,8 @@ export function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthDoses, setMonthDoses] = useState<ScheduledDose[]>([]);
+  const [activeDose, setActiveDose] = useState<(ScheduledDose & { peptideName: string; color: string }) | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calStart = startOfWeek(monthStart);
@@ -38,7 +41,7 @@ export function Calendar() {
       setMonthDoses(doses);
     }
     load();
-  }, [currentMonth]);
+  }, [currentMonth, reloadKey]);
 
   const dosesByDate = useMemo(() => {
     const map = new Map<string, ScheduledDose[]>();
@@ -162,6 +165,7 @@ export function Calendar() {
               return (
                 <button
                   key={dose.id}
+                  onClick={() => setActiveDose(dose)}
                   className="card-glass w-full flex items-center gap-3 p-4 tap-target text-left"
                 >
                   <div className="flex flex-col items-center w-12">
@@ -192,6 +196,14 @@ export function Calendar() {
           </div>
         )}
       </div>
+
+      {activeDose && (
+        <DoseActionSheet
+          dose={activeDose}
+          onClose={() => setActiveDose(null)}
+          onUpdated={() => setReloadKey(k => k + 1)}
+        />
+      )}
     </div>
   );
 }
