@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, addWeeks } from 'date-fns';
 import {
   ArrowLeft, ArrowRight, Check, Beaker, CalendarDays,
-  Clock, Syringe, TrendingUp, Zap, ChevronDown,
+  Syringe, TrendingUp, Zap,
 } from 'lucide-react';
 import { PEPTIDES, getPeptideById, CATEGORY_LABELS, type Peptide, type FrequencyType, type TimeOfDay } from '../data/peptides';
 import { PROTOCOL_TEMPLATES, type ProtocolTemplate } from '../data/protocols';
@@ -265,7 +265,7 @@ export function NewProtocol() {
                       : 'bg-card text-text-secondary border border-border'
                   }`}
                 >
-                  {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
+                  {cat === 'all' ? 'All' : CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS]}
                 </button>
               ))}
             </div>

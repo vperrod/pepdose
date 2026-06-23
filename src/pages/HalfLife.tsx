@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Activity } from 'lucide-react';
-import { parseISO, subHours, subDays, format, differenceInHours } from 'date-fns';
+import { parseISO, subHours, format } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceDot,
 } from 'recharts';
@@ -203,8 +203,8 @@ export function HalfLife() {
                 fontFamily: 'monospace',
               }}
               labelFormatter={t => format(new Date(t as number), 'MMM d, HH:mm')}
-              formatter={(value: number, name: string) => [
-                `${value.toFixed(1)}%`,
+              formatter={(value: number | string, name: string) => [
+                `${Number(value).toFixed(1)}%`,
                 peptideGroups[name]?.name ?? name,
               ]}
             />

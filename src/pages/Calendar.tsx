@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek,
-  isSameMonth, isSameDay, isToday, addMonths, subMonths, parseISO,
+  isSameMonth, isSameDay, isToday, addMonths, subMonths,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getScheduledDosesInRange } from '../db/operations';
@@ -24,8 +24,6 @@ export function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthDoses, setMonthDoses] = useState<ScheduledDose[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calStart = startOfWeek(monthStart);
@@ -34,12 +32,10 @@ export function Calendar() {
 
   useEffect(() => {
     async function load() {
-      setLoading(true);
       const rangeStart = format(calStart, 'yyyy-MM-dd');
       const rangeEnd = format(calEnd, 'yyyy-MM-dd');
       const doses = await getScheduledDosesInRange(rangeStart, rangeEnd);
       setMonthDoses(doses);
-      setLoading(false);
     }
     load();
   }, [currentMonth]);
@@ -112,9 +108,6 @@ export function Calendar() {
               return CATEGORY_COLORS[pep?.category ?? 'healing'] ?? '#00d4aa';
             })
           )].slice(0, 3);
-
-          const hasLogged = dayDoses.some(d => d.status === 'logged');
-          const hasMissed = dayDoses.some(d => d.status === 'missed');
 
           return (
             <button

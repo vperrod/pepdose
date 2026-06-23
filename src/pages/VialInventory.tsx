@@ -28,8 +28,8 @@ export function VialInventory() {
     await saveVial({
       peptideId,
       amountMg: parseFloat(amountMg),
-      bacWaterMl: bacWater ? parseFloat(bacWater) : undefined,
-      reconDate: new Date().toISOString(),
+      bacWaterMl: bacWater ? parseFloat(bacWater) : 0,
+      reconstitutionDate: new Date().toISOString(),
       dosesRemaining: totalDoses,
       totalDoses,
       status: 'active',
@@ -68,7 +68,7 @@ export function VialInventory() {
           </div>
           <select value={peptideId} onChange={e => setPeptideId(e.target.value)} className="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-sm">
             <option value="">Select peptide...</option>
-            {PEPTIDES.filter(p => p.administrationRoute !== 'oral' && p.administrationRoute !== 'intranasal').map(p => (
+            {PEPTIDES.filter(p => p.route !== 'oral' && p.route !== 'intranasal').map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
@@ -97,7 +97,7 @@ export function VialInventory() {
           <p className="text-xs text-text-muted font-medium uppercase tracking-wider mb-2 stagger-item">Active ({active.length})</p>
           {active.map((v, i) => {
             const pep = getPeptideById(v.peptideId);
-            const daysSinceRecon = v.reconDate ? differenceInDays(new Date(), parseISO(v.reconDate)) : null;
+            const daysSinceRecon = v.reconstitutionDate ? differenceInDays(new Date(), parseISO(v.reconstitutionDate)) : null;
             const expiring = daysSinceRecon !== null && daysSinceRecon >= 21;
             const lowStock = v.dosesRemaining <= 3 && v.dosesRemaining > 0;
 
@@ -141,9 +141,9 @@ export function VialInventory() {
                   </div>
                 )}
 
-                {v.reconDate && (
+                {v.reconstitutionDate && (
                   <p className="text-[10px] text-text-muted mt-1">
-                    Reconstituted {format(parseISO(v.reconDate), 'MMM d')}
+                    Reconstituted {format(parseISO(v.reconstitutionDate), 'MMM d')}
                     {v.storageLocation && ` · ${v.storageLocation}`}
                   </p>
                 )}

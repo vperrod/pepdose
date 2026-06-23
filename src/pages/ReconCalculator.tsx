@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calculator, Droplets, FlaskConical, ChevronDown } from 'lucide-react';
+import { Calculator, Droplets, ChevronDown } from 'lucide-react';
 import { PEPTIDES } from '../data/peptides';
 
 // ponytail: only injectable peptides with reconstitution data make sense here

@@ -35,7 +35,7 @@ const BODY_SITES = {
   ],
 };
 
-export function BodyMapSVG({ sites, selectedSite, onSelectSite, daysSinceMap = {} }: BodyMapProps) {
+export function BodyMapSVG({ selectedSite, onSelectSite, daysSinceMap = {} }: BodyMapProps) {
   const [view, setView] = useState<'front' | 'back'>('front');
 
   const currentSites = BODY_SITES[view];

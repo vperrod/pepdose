@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format, subDays } from 'date-fns';
 import {
-  Heart, Weight, Activity, Brain, Moon, Smile, Zap, FileText,
-  TrendingUp, Plus, ChevronDown,
+  Heart, Weight, Activity, Brain, Moon, Zap, FileText,
+  TrendingUp, Plus,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,

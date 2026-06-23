@@ -2,12 +2,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, CalendarDays, Plus, BarChart3, Menu } from 'lucide-react';
 
 const tabs = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, isFab: false },
+  { path: '/calendar', label: 'Calendar', icon: CalendarDays, isFab: false },
   { path: '/log', label: 'Log', icon: Plus, isFab: true },
-  { path: '/insights', label: 'Insights', icon: BarChart3 },
-  { path: '/more', label: 'More', icon: Menu },
-] as const;
+  { path: '/insights', label: 'Insights', icon: BarChart3, isFab: false },
+  { path: '/more', label: 'More', icon: Menu, isFab: false },
+];
 
 export function BottomNav() {
   const location = useLocation();
