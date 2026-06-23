@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { Package, Calculator, BookOpen, Settings, Download, Shield } from 'lucide-react';
+import { Package, Calculator, BookOpen, Settings, Download, Shield, Syringe, ClipboardList } from 'lucide-react';
 
 const menuItems = [
+  { icon: Syringe, label: 'Protocols', desc: 'Create and manage cycles', color: '#00d4aa', path: '/protocols' },
+  { icon: ClipboardList, label: 'Dose History', desc: 'Full injection log', color: '#6366f1', path: '/history' },
   { icon: Package, label: 'Vial Inventory', desc: 'Track vials, doses remaining', color: '#22c55e', path: '/inventory' },
   { icon: Calculator, label: 'Reconstitution Calculator', desc: 'Dose volume calculations', color: '#6366f1', path: '/calculator' },
   { icon: BookOpen, label: 'Peptide Library', desc: 'Profiles, protocols, stacking', color: '#00d4aa', path: '/library' },
