@@ -27,7 +27,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/pepdose">
       <div className="noise-bg flex flex-col min-h-dvh relative">
         <main className="flex-1 pb-24 overflow-y-auto relative z-1">
           <Routes>

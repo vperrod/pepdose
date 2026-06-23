@@ -89,6 +89,17 @@ export const PROTOCOL_TEMPLATES: ProtocolTemplate[] = [
     category: 'Fat Loss',
   },
   {
+    id: 'retatrutide-glow',
+    name: 'Retatrutide + GLOW (Weight Loss + Skin)',
+    description: 'Retatrutide weekly titration for weight loss paired with daily GLOW blend for skin tightening during rapid fat loss.',
+    peptides: [
+      { peptideId: 'retatrutide' },
+      { peptideId: 'glow-blend', doseOverride: 1.2, unitOverride: 'mg' },
+    ],
+    durationWeeks: 24,
+    category: 'Weight Loss',
+  },
+  {
     id: 'cognitive-stack',
     name: 'Cognitive Enhancement',
     description: 'Semax + Selank intranasal stack for focus, memory, and anxiety reduction.',

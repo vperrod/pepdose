@@ -587,6 +587,34 @@ export const PEPTIDES: Peptide[] = [
     },
     cyclingReason: 'GABA modulation tolerance possible. 4 weeks on, 4 weeks off is standard.',
   },
+  {
+    id: 'glow-blend',
+    name: 'GLOW (GHK-Cu + TB-500 + BPC-157)',
+    aliases: ['GLOW', 'GLOW blend', 'Skin Tightening Blend', 'GHK-Cu/TB-500/BPC-157'],
+    category: 'cosmetic',
+    halfLifeHours: 4,
+    mechanismShort: 'Pre-mixed blend: GHK-Cu (50mg) + TB-500 (10mg) + BPC-157 (10mg) per vial. Synergistic collagen synthesis, tissue repair, and skin tightening. Copper peptide provides blue tint when reconstituted. Designed to combat skin laxity during rapid weight loss.',
+    route: 'subq',
+    needleGauge: '29-31G insulin',
+    dosing: {
+      low: 0.9,
+      standard: 1.2,
+      high: 1.8,
+      unit: 'mg',
+      frequency: 'daily',
+      cycleWeeks: 12,
+      offCycleWeeks: 4,
+      timeOfDay: 'morning',
+      withFood: 'either',
+    },
+    reconstitution: {
+      typicalVialMg: 70,
+      bacWaterMl: 4,
+      shelfLifeDays: 28,
+      storageTemp: '2-8°C refrigerated',
+    },
+    cyclingReason: 'Copper accumulation risk from GHK-Cu component. 12 weeks on, 4 weeks off. Monitor for metallic taste or GI issues as copper saturation signs.',
+  },
 ];
 
 export function getPeptideById(id: string): Peptide | undefined {
