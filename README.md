@@ -7,8 +7,17 @@ half-lives, reconstitution, and stacking — all stored locally on your device.
 
 ## Features
 
-- **Dose logging** — log actual quantity, time, injection site, and notes; reschedule or skip doses
-- **Protocols** — create/edit/pause/delete protocols; schedule engine auto-generates future injections
+- **Protocols** — create from templates or any peptide, then fully edit a running protocol:
+  per-peptide dose, length, frequency, time of day, and start date. Pause/resume/delete.
+- **Smart scheduling** — the engine auto-generates every injection. Supports:
+  - **Auto-titration** — GLP-1s step the dose up on a week ladder automatically (e.g.
+    retatrutide `2→4→6→9→12mg`).
+  - **Phased schedules + protocol variants** — peptides like GLOW carry several selectable
+    cycle protocols (e.g. *daily → 5×/week → off*); pick one and the calendar reproduces the
+    exact taper, including weekday-only (`5×/week`) cadence.
+- **Editing regenerates safely** — changing a protocol rebuilds its upcoming doses while
+  preserving everything already logged/skipped/missed.
+- **Dose logging** — log actual quantity, time, injection site, and notes; reschedule or skip
 - **Calendar** — tap any scheduled dose to log, reschedule, or skip
 - **Body map** — pick and track injection sites
 - **Peptide library** — peptide database with dosing data, plus stacking rules
@@ -24,6 +33,19 @@ half-lives, reconstitution, and stacking — all stored locally on your device.
 React 19 · TypeScript · Vite · Tailwind CSS 4 · React Router 7 · Recharts · IndexedDB (via `idb`) · date-fns · lucide-react
 
 All data lives in IndexedDB in the browser — nothing is sent to a server.
+
+## How scheduling works
+
+- `src/data/peptides.ts` — the peptide database. A peptide's `dosing` can carry a `titration`
+  ladder (auto dose step-ups) and/or `protocolVariants` (named phased cycles, each a list of
+  `SchedulePhase` week-ranges + cadence).
+- `src/utils/scheduleEngine.ts` — `generateSchedule()` turns a config into dated doses. Fixed
+  cadences (`daily`/`eod`/`weekly`/`biweekly`/`custom`) use per-cadence loops; peptides with
+  `schedulePhases` use a day-by-day phased generator (`5x_week` = weekdays). `summarizePhases()`
+  / `phasesTotalWeeks()` are shared helpers for the UI.
+- `src/pages/NewProtocol.tsx` / `src/pages/Protocols.tsx` — create and edit flows. Editing
+  regenerates upcoming doses (`deleteUpcomingDosesFrom` + `saveScheduledDoses` in
+  `src/db/operations.ts`) and preserves logged history.
 
 ## Develop
 
