@@ -6,8 +6,8 @@ import {
   getProtocols, deleteProtocol, updateProtocol,
   getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
 } from '../db/operations';
-import { getPeptideById } from '../data/peptides';
-import { generateSchedule } from '../utils/scheduleEngine';
+import { getPeptideById, type Peptide } from '../data/peptides';
+import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
 import type { UserProtocol } from '../db/schema';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -68,9 +68,14 @@ export function Protocols() {
     setSheetMode('actions');
     setEditDoses(proto.doses.map(d => {
       const pep = getPeptideById(d.peptideId);
+      // Backfill a phased variant for older records that predate variants.
+      const fallbackVariant = pep?.dosing.protocolVariants?.[0];
+      const phases = d.schedulePhases ?? fallbackVariant?.phases;
       return {
         ...d,
-        durationWeeks: d.durationWeeks ?? proto.durationWeeks,
+        schedulePhases: phases,
+        variantId: d.variantId ?? (phases ? fallbackVariant?.id : undefined),
+        durationWeeks: phases ? phasesTotalWeeks(phases) : (d.durationWeeks ?? proto.durationWeeks),
         timesPerDay: d.timesPerDay ?? pep?.dosing.timesPerDay ?? 1,
         customFrequencyDays: d.customFrequencyDays ?? pep?.dosing.customFrequencyDays,
       };
@@ -120,6 +125,7 @@ export function Protocols() {
         timeOfDay: d.timeOfDay,
         startDate: editStartDate,
         durationWeeks: d.durationWeeks ?? activeProto.durationWeeks,
+        schedulePhases: d.schedulePhases,
         protocolId: activeProto.id,
       })
     );
@@ -150,6 +156,17 @@ export function Protocols() {
 
   function updateEditDose(index: number, updates: Partial<UserProtocol['doses'][0]>) {
     setEditDoses(prev => prev.map((d, i) => i === index ? { ...d, ...updates } : d));
+  }
+
+  function applyVariantEdit(index: number, peptide: Peptide | undefined, variantId: string) {
+    const variant = peptide?.dosing.protocolVariants?.find(v => v.id === variantId);
+    if (!variant) return;
+    updateEditDose(index, {
+      variantId: variant.id,
+      schedulePhases: variant.phases,
+      durationWeeks: phasesTotalWeeks(variant.phases),
+      dose: variant.doseOverride ?? peptide?.dosing.standard ?? 0,
+    });
   }
 
   if (loading) {
@@ -336,6 +353,9 @@ export function Protocols() {
                     const pep = getPeptideById(dose.peptideId);
                     const color = CATEGORY_COLORS[pep?.category ?? 'healing'] ?? '#00d4aa';
                     const hasTitration = !!pep?.dosing.titration && pep.dosing.titration.length > 0;
+                    const variants = pep?.dosing.protocolVariants;
+                    const isPhased = !!variants?.length;
+                    const activeVariant = variants?.find(v => v.id === dose.variantId);
                     return (
                       <div key={dose.peptideId} className="card-glass p-4">
                         <div className="flex items-center gap-2 mb-3">
@@ -352,6 +372,32 @@ export function Protocols() {
                           <div className="flex items-center gap-2 text-xs text-secondary bg-secondary-dim rounded-lg px-3 py-2 mb-3">
                             <TrendingUp className="w-4 h-4 shrink-0" />
                             Auto-titration — dose steps up automatically. Length still applies.
+                          </div>
+                        )}
+
+                        {isPhased && (
+                          <div className="mb-3">
+                            <label className="text-xs text-text-muted block mb-1">Protocol</label>
+                            <select
+                              value={dose.variantId ?? variants![0].id}
+                              onChange={e => applyVariantEdit(idx, pep, e.target.value)}
+                              className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
+                            >
+                              {variants!.map(v => (
+                                <option key={v.id} value={v.id}>{v.name}</option>
+                              ))}
+                            </select>
+                            {activeVariant && (
+                              <div className="mt-2 text-[11px] text-text-muted space-y-1">
+                                <p className="text-secondary font-medium">{summarizePhases(activeVariant.phases)}</p>
+                                <p>{activeVariant.description}</p>
+                                {activeVariant.source && (
+                                  <a href={activeVariant.source} target="_blank" rel="noreferrer" className="text-primary underline">
+                                    source
+                                  </a>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -376,18 +422,20 @@ export function Protocols() {
                               </select>
                             </div>
                           </div>
-                          <div>
-                            <label className="text-xs text-text-muted block mb-1">Frequency</label>
-                            <select
-                              value={dose.frequency}
-                              onChange={e => updateEditDose(idx, { frequency: e.target.value })}
-                              className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
-                            >
-                              {Object.entries(FREQUENCY_LABELS).map(([k, v]) => (
-                                <option key={k} value={k}>{v}</option>
-                              ))}
-                            </select>
-                          </div>
+                          {!isPhased && (
+                            <div>
+                              <label className="text-xs text-text-muted block mb-1">Frequency</label>
+                              <select
+                                value={dose.frequency}
+                                onChange={e => updateEditDose(idx, { frequency: e.target.value })}
+                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
+                              >
+                                {Object.entries(FREQUENCY_LABELS).map(([k, v]) => (
+                                  <option key={k} value={k}>{v}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                           <div>
                             <label className="text-xs text-text-muted block mb-1">Time</label>
                             <select
@@ -400,18 +448,20 @@ export function Protocols() {
                               ))}
                             </select>
                           </div>
-                          <div>
-                            <label className="text-xs text-text-muted block mb-1">Length (weeks)</label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={52}
-                              value={dose.durationWeeks ?? 1}
-                              onChange={e => updateEditDose(idx, { durationWeeks: parseInt(e.target.value) || 1 })}
-                              className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
-                            />
-                          </div>
-                          {dose.frequency === 'daily' && (
+                          {!isPhased && (
+                            <div>
+                              <label className="text-xs text-text-muted block mb-1">Length (weeks)</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={52}
+                                value={dose.durationWeeks ?? 1}
+                                onChange={e => updateEditDose(idx, { durationWeeks: parseInt(e.target.value) || 1 })}
+                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
+                              />
+                            </div>
+                          )}
+                          {dose.frequency === 'daily' && !isPhased && (
                             <div>
                               <label className="text-xs text-text-muted block mb-1">Times/day</label>
                               <select
@@ -425,7 +475,7 @@ export function Protocols() {
                               </select>
                             </div>
                           )}
-                          {dose.frequency === 'custom' && (
+                          {dose.frequency === 'custom' && !isPhased && (
                             <div>
                               <label className="text-xs text-text-muted block mb-1">Every N days</label>
                               <input

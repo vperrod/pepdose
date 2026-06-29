@@ -19,6 +19,7 @@ const CATEGORIES: ('all' | PeptideCategory)[] = [
 
 function formatFrequency(p: Peptide): string {
   const d = p.dosing;
+  if (d.protocolVariants?.length) return `Phased · ${d.protocolVariants.length} protocols`;
   const times = d.timesPerDay && d.timesPerDay > 1 ? ` ${d.timesPerDay}x/day` : '';
   if (d.frequency === 'custom' && d.customFrequencyDays) return `Every ${d.customFrequencyDays} days${times}`;
   const labels: Record<string, string> = { daily: 'Daily', eod: 'Every other day', weekly: 'Weekly', biweekly: 'Biweekly' };

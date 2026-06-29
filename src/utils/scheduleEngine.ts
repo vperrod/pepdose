@@ -1,5 +1,5 @@
 import { addDays, addWeeks, format, eachDayOfInterval, isBefore, parseISO } from 'date-fns';
-import { type Peptide, getPeptideById } from '../data/peptides';
+import { type Peptide, type SchedulePhase, getPeptideById } from '../data/peptides';
 import type { ScheduledDose } from '../db/schema';
 
 interface ScheduleConfig {
@@ -13,6 +13,7 @@ interface ScheduleConfig {
   startDate: string;
   durationWeeks: number;
   protocolId: string;
+  schedulePhases?: SchedulePhase[];
 }
 
 function generateId(): string {
@@ -47,6 +48,11 @@ export function generateSchedule(config: ScheduleConfig): ScheduledDose[] {
   const startDate = parseISO(config.startDate);
   const endDate = addWeeks(startDate, config.durationWeeks);
   const timeStr = getTimeString(config.timeOfDay);
+
+  if (config.schedulePhases && config.schedulePhases.length > 0) {
+    return generatePhasedSchedule(config, peptide, timeStr);
+  }
+
   const hasTitration = peptide?.dosing.titration && peptide.dosing.titration.length > 0;
 
   let doseIndex = 0;
@@ -185,6 +191,71 @@ function getTitrationDose(peptide: Peptide, weekNumber: number): number {
     }
   }
   return titration[titration.length - 1].dose;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Generate doses for a tapered protocol: walk day by day, and for each day emit a
+// dose only if the active phase's cadence lands on it. Weeks with no phase are off.
+function generatePhasedSchedule(config: ScheduleConfig, peptide: Peptide | undefined, timeStr: string): ScheduledDose[] {
+  const phases = config.schedulePhases!;
+  const startDate = parseISO(config.startDate);
+  const totalWeeks = phasesTotalWeeks(phases);
+  const days = eachDayOfInterval({ start: startDate, end: addDays(addWeeks(startDate, totalWeeks), -1) });
+  const hasTitration = !!peptide?.dosing.titration && peptide.dosing.titration.length > 0;
+
+  const doses: ScheduledDose[] = [];
+  let doseIndex = 0;
+
+  for (const day of days) {
+    const dayOffset = Math.round((day.getTime() - startDate.getTime()) / MS_PER_DAY);
+    const weekNum = Math.floor(dayOffset / 7) + 1;
+    const phase = phases.find(p => weekNum >= p.weekStart && weekNum <= p.weekEnd);
+    if (!phase) continue; // off week
+
+    const dow = day.getDay();
+    let emit = false;
+    switch (phase.frequency) {
+      case 'daily': emit = true; break;
+      case '5x_week': emit = dow !== 0 && dow !== 6; break; // weekdays
+      case 'eod': emit = dayOffset % 2 === 0; break;
+      case 'weekly': emit = dow === startDate.getDay(); break;
+      default: emit = true;
+    }
+    if (!emit) continue;
+
+    doses.push({
+      id: generateId(),
+      protocolId: config.protocolId,
+      peptideId: config.peptideId,
+      date: format(day, 'yyyy-MM-dd'),
+      time: timeStr,
+      dose: hasTitration ? getTitrationDose(peptide!, weekNum) : config.dose,
+      unit: hasTitration ? peptide!.dosing.titration![0].unit : config.unit,
+      route: peptide?.route || 'subq',
+      status: 'upcoming',
+      suggestedSite: peptide?.route === 'subq' || peptide?.route === 'im' ? suggestSite(doseIndex) : undefined,
+      weekNumber: weekNum,
+    });
+    doseIndex++;
+  }
+
+  return doses;
+}
+
+export function phasesTotalWeeks(phases: SchedulePhase[]): number {
+  return phases.reduce((max, p) => Math.max(max, p.weekEnd), 0);
+}
+
+const FREQ_SHORT: Record<string, string> = {
+  daily: 'Daily', '5x_week': '5×/wk', eod: 'EOD', weekly: 'Weekly', biweekly: 'Bi-weekly', custom: 'Custom',
+};
+
+// "Daily ×2wk → 5×/wk ×2wk → off"
+export function summarizePhases(phases: SchedulePhase[]): string {
+  if (!phases.length) return '';
+  const parts = phases.map(p => `${FREQ_SHORT[p.frequency] ?? p.frequency} ×${p.weekEnd - p.weekStart + 1}wk`);
+  return `${parts.join(' → ')} → off`;
 }
 
 export function updateFutureDoses(

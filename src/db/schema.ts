@@ -1,10 +1,11 @@
 import { type DBSchema, openDB, type IDBPDatabase } from 'idb';
+import type { SchedulePhase } from '../data/peptides';
 
 export interface UserProtocol {
   id: string;
   name: string;
   peptideIds: string[];
-  doses: { peptideId: string; dose: number; unit: 'mcg' | 'mg'; frequency: string; timesPerDay?: number; timeOfDay: string; durationWeeks?: number; customFrequencyDays?: number }[];
+  doses: { peptideId: string; dose: number; unit: 'mcg' | 'mg'; frequency: string; timesPerDay?: number; timeOfDay: string; durationWeeks?: number; customFrequencyDays?: number; schedulePhases?: SchedulePhase[]; variantId?: string }[];
   startDate: string;
   durationWeeks: number;
   status: 'active' | 'paused' | 'completed' | 'archived';

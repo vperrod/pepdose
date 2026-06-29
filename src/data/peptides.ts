@@ -8,7 +8,7 @@ export type PeptideCategory =
   | 'nootropic';
 
 export type InjectionRoute = 'subq' | 'im' | 'oral' | 'intranasal' | 'topical';
-export type FrequencyType = 'daily' | 'eod' | 'weekly' | 'biweekly' | 'custom';
+export type FrequencyType = 'daily' | '5x_week' | 'eod' | 'weekly' | 'biweekly' | 'custom';
 export type TimeOfDay = 'morning_fasting' | 'morning' | 'evening' | 'pre_bed' | 'before_activity' | 'any';
 
 export interface TitrationStep {
@@ -16,6 +16,23 @@ export interface TitrationStep {
   weekEnd: number;
   dose: number;
   unit: 'mcg' | 'mg';
+}
+
+// A phase of a tapered protocol: a week range run at a given cadence.
+export interface SchedulePhase {
+  weekStart: number;
+  weekEnd: number;
+  frequency: FrequencyType;
+}
+
+// A named, selectable phased protocol (e.g. the several ways people cycle GLOW).
+export interface ProtocolVariant {
+  id: string;
+  name: string;
+  description: string;
+  phases: SchedulePhase[];
+  doseOverride?: number;
+  source?: string;
 }
 
 export interface DosingProtocol {
@@ -29,6 +46,9 @@ export interface DosingProtocol {
   cycleWeeks: number;
   offCycleWeeks: number;
   titration?: TitrationStep[];
+  // Selectable phased protocols. When present, the UI offers a variant picker and
+  // the schedule engine generates doses from the chosen variant's phases.
+  protocolVariants?: ProtocolVariant[];
   timeOfDay: TimeOfDay;
   withFood: 'fasting' | 'fed' | 'either';
 }
@@ -604,6 +624,66 @@ export const PEPTIDES: Peptide[] = [
       frequency: 'daily',
       cycleWeeks: 8,
       offCycleWeeks: 4,
+      protocolVariants: [
+        {
+          id: 'glow-short-taper',
+          name: 'Short Taper (2wk daily → 2wk 5×/wk)',
+          description: 'Daily for 2 weeks, then 5×/week (weekdays) for 2 weeks, then off. A compact 4-week front-loaded cycle. Derived from the loading-then-taper pattern — no single source documents this exact split.',
+          phases: [
+            { weekStart: 1, weekEnd: 2, frequency: 'daily' },
+            { weekStart: 3, weekEnd: 4, frequency: '5x_week' },
+          ],
+        },
+        {
+          id: 'glow-loading-taper',
+          name: 'Loading + Taper (2wk daily → 6wk 5×/wk)',
+          description: 'Front-load daily for 2 weeks for faster onset, then settle into 5-on/2-off for 6 weeks. Good for acute recovery / post-surgery.',
+          phases: [
+            { weekStart: 1, weekEnd: 2, frequency: 'daily' },
+            { weekStart: 3, weekEnd: 8, frequency: '5x_week' },
+          ],
+          source: 'https://www.peptidedeck.com/glow-dosage-chart',
+        },
+        {
+          id: 'glow-full-taper',
+          name: 'Full Taper (4wk daily → 4wk 5×/wk → maintenance)',
+          description: 'Activation (daily, wk1-4) → remodeling (5×/week, wk5-8) → maintenance (every other day, wk9-12). Sustained signal without blunting response.',
+          phases: [
+            { weekStart: 1, weekEnd: 4, frequency: 'daily' },
+            { weekStart: 5, weekEnd: 8, frequency: '5x_week' },
+            { weekStart: 9, weekEnd: 12, frequency: 'eod' },
+          ],
+          source: 'https://peptidefox.com/tools/glow-dosage-calculator',
+        },
+        {
+          id: 'glow-weekdays',
+          name: 'Weekdays (5-on/2-off, 8wk)',
+          description: 'Mon–Fri dosing, weekends off, for 8 weeks. Copper-conscious: the 2 weekly off-days cut cumulative GHK-Cu load while keeping near-daily exposure.',
+          phases: [
+            { weekStart: 1, weekEnd: 8, frequency: '5x_week' },
+          ],
+          source: 'https://www.peptidedeck.com/glow-dosage-chart',
+        },
+        {
+          id: 'glow-daily-4wk',
+          name: 'Daily (4 weeks)',
+          description: 'Simplest cycle: daily for 4 weeks, then 2–4 weeks off. Entry-level for general skin / anti-aging.',
+          phases: [
+            { weekStart: 1, weekEnd: 4, frequency: 'daily' },
+          ],
+          source: 'https://peptidedosages.com/peptide-blend-dosages/glow-peptide-blend-70-mg-vial-dosage-protocol/',
+        },
+        {
+          id: 'glow-aggressive',
+          name: 'Aggressive (high-dose 5×/wk, 6wk)',
+          description: 'Higher dose (≈3.5mg) 5×/week for 6 weeks for experienced users wanting rapid remodeling. Highest copper exposure — get bloodwork (copper, ceruloplasmin).',
+          phases: [
+            { weekStart: 1, weekEnd: 6, frequency: '5x_week' },
+          ],
+          doseOverride: 3.5,
+          source: 'https://www.peptidedeck.com/glow-dosage-chart',
+        },
+      ],
       timeOfDay: 'morning',
       withFood: 'either',
     },

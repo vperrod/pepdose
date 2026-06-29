@@ -5,10 +5,10 @@ import {
   ArrowLeft, ArrowRight, Check, Beaker, CalendarDays,
   Syringe, TrendingUp, Zap,
 } from 'lucide-react';
-import { PEPTIDES, getPeptideById, CATEGORY_LABELS, type Peptide, type FrequencyType, type TimeOfDay } from '../data/peptides';
+import { PEPTIDES, getPeptideById, CATEGORY_LABELS, type Peptide, type FrequencyType, type TimeOfDay, type SchedulePhase } from '../data/peptides';
 import { PROTOCOL_TEMPLATES, type ProtocolTemplate } from '../data/protocols';
 import { getStackWarnings } from '../data/stackingRules';
-import { generateSchedule } from '../utils/scheduleEngine';
+import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
 import { saveProtocol, saveScheduledDoses } from '../db/operations';
 
 type Step = 'select' | 'configure' | 'review';
@@ -50,6 +50,9 @@ interface PeptideConfig {
   timeOfDay: TimeOfDay;
   // Optional per-peptide cycle length; falls back to the protocol durationWeeks.
   durationWeeks?: number;
+  // Phased protocol (e.g. GLOW): when set, cadence comes from these phases.
+  schedulePhases?: SchedulePhase[];
+  variantId?: string;
 }
 
 export function NewProtocol() {
@@ -86,14 +89,18 @@ export function NewProtocol() {
 
   function selectPeptide(peptide: Peptide) {
     if (peptideConfigs.some(c => c.peptideId === peptide.id)) return;
+    const variant = peptide.dosing.protocolVariants?.[0];
     const config: PeptideConfig = {
       peptideId: peptide.id,
-      dose: peptide.dosing.standard,
+      dose: variant?.doseOverride ?? peptide.dosing.standard,
       unit: peptide.dosing.unit,
       frequency: peptide.dosing.frequency,
       customFrequencyDays: peptide.dosing.customFrequencyDays,
       timesPerDay: peptide.dosing.timesPerDay || 1,
       timeOfDay: peptide.dosing.timeOfDay,
+      schedulePhases: variant?.phases,
+      variantId: variant?.id,
+      durationWeeks: variant ? phasesTotalWeeks(variant.phases) : undefined,
     };
     setPeptideConfigs(prev => [...prev, config]);
     setDurationWeeks(peptide.dosing.cycleWeeks);
@@ -104,15 +111,18 @@ export function NewProtocol() {
   function selectTemplate(template: ProtocolTemplate) {
     const configs: PeptideConfig[] = template.peptides.map(tp => {
       const pep = getPeptideById(tp.peptideId);
+      const variant = pep?.dosing.protocolVariants?.[0];
       return {
         peptideId: tp.peptideId,
-        dose: tp.doseOverride ?? pep?.dosing.standard ?? 100,
+        dose: tp.doseOverride ?? variant?.doseOverride ?? pep?.dosing.standard ?? 100,
         unit: tp.unitOverride ?? pep?.dosing.unit ?? 'mcg',
         frequency: (tp.frequencyOverride as FrequencyType) ?? pep?.dosing.frequency ?? 'daily',
         customFrequencyDays: pep?.dosing.customFrequencyDays,
         timesPerDay: pep?.dosing.timesPerDay || 1,
         timeOfDay: pep?.dosing.timeOfDay ?? 'morning',
-        durationWeeks: tp.durationWeeksOverride,
+        schedulePhases: variant?.phases,
+        variantId: variant?.id,
+        durationWeeks: variant ? phasesTotalWeeks(variant.phases) : tp.durationWeeksOverride,
       };
     });
     setPeptideConfigs(configs);
@@ -127,6 +137,17 @@ export function NewProtocol() {
 
   function updateConfig(index: number, updates: Partial<PeptideConfig>) {
     setPeptideConfigs(prev => prev.map((c, i) => i === index ? { ...c, ...updates } : c));
+  }
+
+  function applyVariant(index: number, peptide: Peptide | undefined, variantId: string) {
+    const variant = peptide?.dosing.protocolVariants?.find(v => v.id === variantId);
+    if (!variant) return;
+    updateConfig(index, {
+      variantId: variant.id,
+      schedulePhases: variant.phases,
+      durationWeeks: phasesTotalWeeks(variant.phases),
+      dose: variant.doseOverride ?? peptide?.dosing.standard ?? 0,
+    });
   }
 
   async function createProtocol() {
@@ -145,6 +166,8 @@ export function NewProtocol() {
         timesPerDay: c.timesPerDay,
         timeOfDay: c.timeOfDay,
         durationWeeks: c.durationWeeks ?? durationWeeks,
+        schedulePhases: c.schedulePhases,
+        variantId: c.variantId,
       })),
       startDate,
       durationWeeks,
@@ -162,6 +185,7 @@ export function NewProtocol() {
         timeOfDay: config.timeOfDay,
         startDate,
         durationWeeks: config.durationWeeks ?? durationWeeks,
+        schedulePhases: config.schedulePhases,
         protocolId: protocol.id,
       })
     );
@@ -173,7 +197,12 @@ export function NewProtocol() {
 
   const totalDoses = useMemo(() => {
     if (peptideConfigs.length === 0) return 0;
+    const PER_WEEK: Record<string, number> = { daily: 7, '5x_week': 5, eod: 3.5, weekly: 1, biweekly: 0.5, custom: 7 };
     return peptideConfigs.reduce((sum, config) => {
+      if (config.schedulePhases?.length) {
+        return sum + Math.round(config.schedulePhases.reduce(
+          (s, p) => s + (p.weekEnd - p.weekStart + 1) * (PER_WEEK[p.frequency] ?? 7), 0));
+      }
       const weeks = config.durationWeeks ?? durationWeeks;
       const daysInCycle = weeks * 7;
       switch (config.frequency) {
@@ -333,6 +362,9 @@ export function NewProtocol() {
             const pep = getPeptideById(config.peptideId);
             const color = CATEGORY_COLORS[pep?.category ?? 'healing'] ?? '#00d4aa';
             const hasTitration = pep?.dosing.titration && pep.dosing.titration.length > 0;
+            const variants = pep?.dosing.protocolVariants;
+            const isPhased = !!variants?.length;
+            const activeVariant = variants?.find(v => v.id === config.variantId);
 
             return (
               <div
@@ -365,6 +397,32 @@ export function NewProtocol() {
                   </div>
                 )}
 
+                {isPhased && (
+                  <div className="mb-4">
+                    <label className="text-xs text-text-muted block mb-1">Protocol</label>
+                    <select
+                      value={config.variantId ?? variants![0].id}
+                      onChange={e => applyVariant(idx, pep, e.target.value)}
+                      className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm text-text"
+                    >
+                      {variants!.map(v => (
+                        <option key={v.id} value={v.id}>{v.name}</option>
+                      ))}
+                    </select>
+                    {activeVariant && (
+                      <div className="mt-2 text-[11px] text-text-muted space-y-1">
+                        <p className="text-secondary font-medium">{summarizePhases(activeVariant.phases)}</p>
+                        <p>{activeVariant.description}</p>
+                        {activeVariant.source && (
+                          <a href={activeVariant.source} target="_blank" rel="noreferrer" className="text-primary underline">
+                            source
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-text-muted block mb-1">Dose</label>
@@ -392,18 +450,20 @@ export function NewProtocol() {
                     )}
                   </div>
 
-                  <div>
-                    <label className="text-xs text-text-muted block mb-1">Frequency</label>
-                    <select
-                      value={config.frequency}
-                      onChange={e => updateConfig(idx, { frequency: e.target.value as FrequencyType })}
-                      className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm text-text"
-                    >
-                      {Object.entries(FREQUENCY_LABELS).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {!isPhased && (
+                    <div>
+                      <label className="text-xs text-text-muted block mb-1">Frequency</label>
+                      <select
+                        value={config.frequency}
+                        onChange={e => updateConfig(idx, { frequency: e.target.value as FrequencyType })}
+                        className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm text-text"
+                      >
+                        {Object.entries(FREQUENCY_LABELS).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div>
                     <label className="text-xs text-text-muted block mb-1">Time of Day</label>
@@ -418,7 +478,7 @@ export function NewProtocol() {
                     </select>
                   </div>
 
-                  {config.frequency === 'daily' && (
+                  {config.frequency === 'daily' && !isPhased && (
                     <div>
                       <label className="text-xs text-text-muted block mb-1">Times/day</label>
                       <select
@@ -538,7 +598,7 @@ export function NewProtocol() {
                     <p className="font-medium text-sm">{pep?.name}</p>
                     <p className="text-xs text-text-muted font-mono">
                       {hasTitration ? 'Titration protocol' : `${config.dose} ${config.unit}`}
-                      {' · '}{FREQUENCY_LABELS[config.frequency]}
+                      {' · '}{config.schedulePhases?.length ? summarizePhases(config.schedulePhases) : FREQUENCY_LABELS[config.frequency]}
                       {' · '}{TIME_LABELS[config.timeOfDay]}
                     </p>
                   </div>
