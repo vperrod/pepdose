@@ -1,73 +1,46 @@
-# React + TypeScript + Vite
+# pepdose
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A peptide dose-tracking PWA. Plan protocols, log injections, track vials, and reason about
+half-lives, reconstitution, and stacking — all stored locally on your device.
 
-Currently, two official plugins are available:
+**Live:** https://vperrod.github.io/pepdose/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Dose logging** — log actual quantity, time, injection site, and notes; reschedule or skip doses
+- **Protocols** — create/edit/pause/delete protocols; schedule engine auto-generates future injections
+- **Calendar** — tap any scheduled dose to log, reschedule, or skip
+- **Body map** — pick and track injection sites
+- **Peptide library** — peptide database with dosing data, plus stacking rules
+- **Calculators** — reconstitution calculator and half-life decay charts
+- **Vial inventory** — track stock on hand
+- **Insights & health markers** — trends and self-reported markers over time
+- **Experience guides** — week-by-week timelines, side effects, and red flags (community + clinical sourced)
+- **Export / import** — back up and restore all data
+- **Offline-first PWA** — installable, works without a connection
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the ESLint configuration
+React 19 · TypeScript · Vite · Tailwind CSS 4 · React Router 7 · Recharts · IndexedDB (via `idb`) · date-fns · lucide-react
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+All data lives in IndexedDB in the browser — nothing is sent to a server.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Develop
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # start dev server
+npm run build    # type-check + production build
+npm run preview  # preview the build
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Deploy
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and publishes to
+GitHub Pages. The Vite `base` is set to `/pepdose/` to match the Pages path.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Disclaimer
+
+For personal tracking only. Not medical advice. Peptide data and experience guides are
+community- and literature-sourced and may be incomplete or inaccurate — verify independently.
