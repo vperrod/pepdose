@@ -4,7 +4,7 @@ export interface UserProtocol {
   id: string;
   name: string;
   peptideIds: string[];
-  doses: { peptideId: string; dose: number; unit: 'mcg' | 'mg'; frequency: string; timesPerDay?: number; timeOfDay: string }[];
+  doses: { peptideId: string; dose: number; unit: 'mcg' | 'mg'; frequency: string; timesPerDay?: number; timeOfDay: string; durationWeeks?: number; customFrequencyDays?: number }[];
   startDate: string;
   durationWeeks: number;
   status: 'active' | 'paused' | 'completed' | 'archived';

@@ -118,6 +118,18 @@ export async function updateFutureScheduledDoses(
   return future.length;
 }
 
+export async function deleteUpcomingDosesFrom(protocolId: string, fromDate: string): Promise<void> {
+  const db = await getDB();
+  const doses = await db.getAllFromIndex('scheduledDoses', 'by-protocol', protocolId);
+  const tx = db.transaction('scheduledDoses', 'readwrite');
+  for (const dose of doses) {
+    if (dose.status === 'upcoming' && dose.date >= fromDate) {
+      await tx.store.delete(dose.id);
+    }
+  }
+  await tx.done;
+}
+
 export async function deleteScheduledDosesForProtocol(protocolId: string): Promise<void> {
   const db = await getDB();
   const doses = await db.getAllFromIndex('scheduledDoses', 'by-protocol', protocolId);

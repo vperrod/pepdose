@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInWeeks, parseISO, format } from 'date-fns';
-import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle } from 'lucide-react';
-import { getProtocols, deleteProtocol, updateProtocol, updateFutureScheduledDoses } from '../db/operations';
+import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays } from 'lucide-react';
+import {
+  getProtocols, deleteProtocol, updateProtocol,
+  getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
+} from '../db/operations';
 import { getPeptideById } from '../data/peptides';
+import { generateSchedule } from '../utils/scheduleEngine';
 import type { UserProtocol } from '../db/schema';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -46,7 +50,7 @@ export function Protocols() {
 
   // Edit state
   const [editDoses, setEditDoses] = useState<UserProtocol['doses']>([]);
-  const [editDuration, setEditDuration] = useState(4);
+  const [editStartDate, setEditStartDate] = useState('');
   const [editName, setEditName] = useState('');
 
   useEffect(() => {
@@ -62,8 +66,16 @@ export function Protocols() {
   function openSheet(proto: UserProtocol) {
     setActiveProto(proto);
     setSheetMode('actions');
-    setEditDoses(proto.doses.map(d => ({ ...d })));
-    setEditDuration(proto.durationWeeks);
+    setEditDoses(proto.doses.map(d => {
+      const pep = getPeptideById(d.peptideId);
+      return {
+        ...d,
+        durationWeeks: d.durationWeeks ?? proto.durationWeeks,
+        timesPerDay: d.timesPerDay ?? pep?.dosing.timesPerDay ?? 1,
+        customFrequencyDays: d.customFrequencyDays ?? pep?.dosing.customFrequencyDays,
+      };
+    }));
+    setEditStartDate(proto.startDate);
     setEditName(proto.name);
   }
 
@@ -93,26 +105,43 @@ export function Protocols() {
     if (!activeProto) return;
     setSaving(true);
 
-    await updateProtocol(activeProto.id, {
-      name: editName,
-      durationWeeks: editDuration,
-      doses: editDoses,
-    });
+    const protoDuration = Math.max(...editDoses.map(d => d.durationWeeks ?? activeProto.durationWeeks));
+
+    // Regenerate the full schedule from the (possibly new) start date so titration
+    // week-alignment is preserved, then keep only the upcoming portion.
+    const fullDoses = editDoses.flatMap(d =>
+      generateSchedule({
+        peptideId: d.peptideId,
+        dose: d.dose,
+        unit: d.unit as 'mcg' | 'mg',
+        frequency: d.frequency,
+        customFrequencyDays: d.customFrequencyDays,
+        timesPerDay: d.timesPerDay,
+        timeOfDay: d.timeOfDay,
+        startDate: editStartDate,
+        durationWeeks: d.durationWeeks ?? activeProto.durationWeeks,
+        protocolId: activeProto.id,
+      })
+    );
+
+    // Preserve any dose that already happened (logged/skipped/missed) — never rewrite history.
+    const existing = await getScheduledDosesForProtocol(activeProto.id);
+    const preserved = new Set(
+      existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}`)
+    );
 
     const today = format(new Date(), 'yyyy-MM-dd');
-    for (const dose of editDoses) {
-      const original = activeProto.doses.find(d => d.peptideId === dose.peptideId);
-      if (original && (original.dose !== dose.dose || original.unit !== dose.unit)) {
-        await updateFutureScheduledDoses(
-          activeProto.id,
-          today,
-          { dose: dose.dose, unit: dose.unit as 'mcg' | 'mg' },
-          'dose',
-          `${original.dose} ${original.unit}`,
-          `${dose.dose} ${dose.unit}`,
-        );
-      }
-    }
+    const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}`));
+
+    await deleteUpcomingDosesFrom(activeProto.id, today);
+    await saveScheduledDoses(regen);
+
+    await updateProtocol(activeProto.id, {
+      name: editName,
+      startDate: editStartDate,
+      durationWeeks: protoDuration,
+      doses: editDoses,
+    });
 
     setSaving(false);
     closeSheet();
@@ -287,9 +316,26 @@ export function Protocols() {
                     />
                   </div>
 
+                  <div>
+                    <label className="text-xs text-text-muted uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <CalendarDays className="w-3.5 h-3.5" />
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={editStartDate}
+                      onChange={e => setEditStartDate(e.target.value)}
+                      className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
+                    />
+                    <p className="text-[10px] text-text-muted mt-1">
+                      Moving this reshuffles upcoming doses. Logged doses stay put.
+                    </p>
+                  </div>
+
                   {editDoses.map((dose, idx) => {
                     const pep = getPeptideById(dose.peptideId);
                     const color = CATEGORY_COLORS[pep?.category ?? 'healing'] ?? '#00d4aa';
+                    const hasTitration = !!pep?.dosing.titration && pep.dosing.titration.length > 0;
                     return (
                       <div key={dose.peptideId} className="card-glass p-4">
                         <div className="flex items-center gap-2 mb-3">
@@ -301,6 +347,14 @@ export function Protocols() {
                           </div>
                           <span className="font-semibold text-sm">{pep?.name ?? dose.peptideId}</span>
                         </div>
+
+                        {hasTitration && (
+                          <div className="flex items-center gap-2 text-xs text-secondary bg-secondary-dim rounded-lg px-3 py-2 mb-3">
+                            <TrendingUp className="w-4 h-4 shrink-0" />
+                            Auto-titration — dose steps up automatically. Length still applies.
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="text-xs text-text-muted block mb-1">Dose</label>
@@ -346,27 +400,51 @@ export function Protocols() {
                               ))}
                             </select>
                           </div>
+                          <div>
+                            <label className="text-xs text-text-muted block mb-1">Length (weeks)</label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={52}
+                              value={dose.durationWeeks ?? 1}
+                              onChange={e => updateEditDose(idx, { durationWeeks: parseInt(e.target.value) || 1 })}
+                              className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
+                            />
+                          </div>
+                          {dose.frequency === 'daily' && (
+                            <div>
+                              <label className="text-xs text-text-muted block mb-1">Times/day</label>
+                              <select
+                                value={dose.timesPerDay ?? 1}
+                                onChange={e => updateEditDose(idx, { timesPerDay: parseInt(e.target.value) })}
+                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
+                              >
+                                <option value={1}>1x</option>
+                                <option value={2}>2x</option>
+                                <option value={3}>3x</option>
+                              </select>
+                            </div>
+                          )}
+                          {dose.frequency === 'custom' && (
+                            <div>
+                              <label className="text-xs text-text-muted block mb-1">Every N days</label>
+                              <input
+                                type="number"
+                                min={1}
+                                value={dose.customFrequencyDays ?? 3}
+                                onChange={e => updateEditDose(idx, { customFrequencyDays: parseInt(e.target.value) || 1 })}
+                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
                   })}
 
-                  <div>
-                    <label className="text-xs text-text-muted uppercase tracking-wider block mb-1.5">
-                      Duration (weeks)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={52}
-                      value={editDuration}
-                      onChange={e => setEditDuration(parseInt(e.target.value) || 1)}
-                      className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
-                    />
-                  </div>
-
                   <p className="text-xs text-text-muted">
-                    Dose changes apply to all future scheduled injections.
+                    Saving rebuilds all upcoming injections from these settings. Already-logged
+                    doses are kept.
                   </p>
 
                   <div className="flex gap-3 pt-2 pb-4">
