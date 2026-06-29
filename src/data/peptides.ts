@@ -233,8 +233,9 @@ export const PEPTIDES: Peptide[] = [
       titration: [
         { weekStart: 1, weekEnd: 4, dose: 2, unit: 'mg' },
         { weekStart: 5, weekEnd: 8, dose: 4, unit: 'mg' },
-        { weekStart: 9, weekEnd: 12, dose: 8, unit: 'mg' },
-        { weekStart: 13, weekEnd: 999, dose: 12, unit: 'mg' },
+        { weekStart: 9, weekEnd: 12, dose: 6, unit: 'mg' },
+        { weekStart: 13, weekEnd: 16, dose: 9, unit: 'mg' },
+        { weekStart: 17, weekEnd: 999, dose: 12, unit: 'mg' },
       ],
     },
     reconstitution: {
@@ -243,7 +244,7 @@ export const PEPTIDES: Peptide[] = [
       shelfLifeDays: 28,
       storageTemp: '2-8°C refrigerated',
     },
-    cyclingReason: 'Phase 3 trials ongoing (TRIUMPH program). Not yet FDA-approved. Follow titration strictly — starting at 2mg minimizes GI side effects. Monitor liver enzymes and lipids.',
+    cyclingReason: 'Phase 3 trials ongoing (TRIUMPH program). Not yet FDA-approved. Uses the Phase 3 escalation (2→4→6→9→12mg, 4-week steps) — the smoother ladder Lilly adopted after the Phase 2 4→8mg doubling roughly doubled GI side effects. Community often titrates even slower and holds at 4–8mg. Monitor liver enzymes and lipids.',
   },
   {
     id: 'cjc-1295-no-dac',
@@ -597,8 +598,8 @@ export const PEPTIDES: Peptide[] = [
     needleGauge: '29-31G insulin',
     dosing: {
       low: 1.4,
-      standard: 2.8,
-      high: 4.2,
+      standard: 2.33,
+      high: 3.5,
       unit: 'mg',
       frequency: 'daily',
       cycleWeeks: 8,
@@ -608,11 +609,11 @@ export const PEPTIDES: Peptide[] = [
     },
     reconstitution: {
       typicalVialMg: 70,
-      bacWaterMl: 2.5,
+      bacWaterMl: 3,
       shelfLifeDays: 28,
       storageTemp: '2-8°C refrigerated',
     },
-    cyclingReason: 'Cycle: daily weeks 1-4, 5x/week weeks 5-8, then 4-8 weeks off (or step down to 2-3x/week maintenance). Breaks let newly built collagen organize. Copper accumulation risk — monitor for metallic taste or GI issues.',
+    cyclingReason: 'Reconstitute 70mg in 3mL BAC water (23.3mg/mL): a 2.33mg dose = 10 units on a U-100 syringe. Cycle: daily weeks 1-4, 5x/week weeks 5-8, then 4-8 weeks off (or step down to 2-3x/week maintenance). Breaks let newly built collagen organize AND clear copper — GHK-Cu accumulation is the limiting factor, so never run continuously. Stop early if you get a metallic taste or GI issues.',
   },
 ];
 

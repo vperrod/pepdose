@@ -7,6 +7,10 @@ export interface ProtocolTemplate {
     doseOverride?: number;
     unitOverride?: 'mcg' | 'mg';
     frequencyOverride?: string;
+    // Per-peptide cycle length. Lets a combo protocol run each peptide for a
+    // different duration (e.g. GLP-1 for months while a cosmetic peptide cycles
+    // for weeks). Falls back to the template's durationWeeks when unset.
+    durationWeeksOverride?: number;
   }[];
   durationWeeks: number;
   category: string;
@@ -91,10 +95,10 @@ export const PROTOCOL_TEMPLATES: ProtocolTemplate[] = [
   {
     id: 'retatrutide-glow',
     name: 'Retatrutide + GLOW (Weight Loss + Skin)',
-    description: 'Retatrutide weekly titration for weight loss paired with daily GLOW blend for skin tightening during rapid fat loss.',
+    description: 'Retatrutide weekly titration (Phase 3 ladder 2→4→6→9→12mg) for weight loss, paired with a daily GLOW blend cycle for skin support during rapid fat loss. GLOW runs an 8-week cycle (then needs a break for copper), while retatrutide continues the full 24 weeks.',
     peptides: [
       { peptideId: 'retatrutide' },
-      { peptideId: 'glow-blend', doseOverride: 2.8, unitOverride: 'mg' },
+      { peptideId: 'glow-blend', doseOverride: 2.33, unitOverride: 'mg', durationWeeksOverride: 8 },
     ],
     durationWeeks: 24,
     category: 'Weight Loss',

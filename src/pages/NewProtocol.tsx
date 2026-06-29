@@ -48,6 +48,8 @@ interface PeptideConfig {
   customFrequencyDays?: number;
   timesPerDay: number;
   timeOfDay: TimeOfDay;
+  // Optional per-peptide cycle length; falls back to the protocol durationWeeks.
+  durationWeeks?: number;
 }
 
 export function NewProtocol() {
@@ -108,6 +110,7 @@ export function NewProtocol() {
         frequency: (tp.frequencyOverride as FrequencyType) ?? pep?.dosing.frequency ?? 'daily',
         timesPerDay: pep?.dosing.timesPerDay || 1,
         timeOfDay: pep?.dosing.timeOfDay ?? 'morning',
+        durationWeeks: tp.durationWeeksOverride,
       };
     });
     setPeptideConfigs(configs);
@@ -153,7 +156,7 @@ export function NewProtocol() {
         timesPerDay: config.timesPerDay,
         timeOfDay: config.timeOfDay,
         startDate,
-        durationWeeks,
+        durationWeeks: config.durationWeeks ?? durationWeeks,
         protocolId: protocol.id,
       })
     );
@@ -166,12 +169,13 @@ export function NewProtocol() {
   const totalDoses = useMemo(() => {
     if (peptideConfigs.length === 0) return 0;
     return peptideConfigs.reduce((sum, config) => {
-      const daysInCycle = durationWeeks * 7;
+      const weeks = config.durationWeeks ?? durationWeeks;
+      const daysInCycle = weeks * 7;
       switch (config.frequency) {
         case 'daily': return sum + daysInCycle * config.timesPerDay;
         case 'eod': return sum + Math.ceil(daysInCycle / 2);
-        case 'weekly': return sum + durationWeeks;
-        case 'biweekly': return sum + Math.ceil(durationWeeks / 2);
+        case 'weekly': return sum + weeks;
+        case 'biweekly': return sum + Math.ceil(weeks / 2);
         default: return sum + daysInCycle;
       }
     }, 0);
