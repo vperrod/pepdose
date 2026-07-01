@@ -17,7 +17,12 @@ half-lives, reconstitution, and stacking — all stored locally on your device.
     exact taper, including weekday-only (`5×/week`) cadence.
 - **Editing regenerates safely** — changing a protocol rebuilds its upcoming doses while
   preserving everything already logged/skipped/missed.
-- **Dose logging** — log actual quantity, time, injection site, and notes; reschedule or skip
+- **Protocol journey** — tap a protocol (from the Protocols list or a Dashboard card) to see
+  its full timeline: every dose grouped by week, status (done/upcoming/missed/skipped),
+  injection site, and titration step-ups. Tap any dose to log or edit it; logged doses stay
+  editable (dose, time, site, notes). "Manage" holds edit/pause/delete.
+- **Dose logging** — log actual quantity, time, injection site, and notes; reschedule or skip.
+  Logged rows show the *actual* recorded site, not the auto-rotation suggestion.
 - **Calendar** — tap any scheduled dose to log, reschedule, or skip
 - **Body map** — pick and track injection sites
 - **Peptide library** — peptide database with dosing data, plus stacking rules
@@ -45,7 +50,10 @@ All data lives in IndexedDB in the browser — nothing is sent to a server.
   / `phasesTotalWeeks()` are shared helpers for the UI.
 - `src/pages/NewProtocol.tsx` / `src/pages/Protocols.tsx` — create and edit flows. Editing
   regenerates upcoming doses (`deleteUpcomingDosesFrom` + `saveScheduledDoses` in
-  `src/db/operations.ts`) and preserves logged history.
+  `src/db/operations.ts`) and preserves logged history. `Protocols.tsx` also renders the
+  journey timeline, joining `getScheduledDosesForProtocol` with `getDoseLogsForProtocol` so
+  logged rows show the real `injectionSite`. Per-dose logging/editing reuses
+  `src/components/DoseActionSheet.tsx` (`logDose` for new, `updateDoseLog` for edits).
 
 ## Develop
 
