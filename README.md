@@ -22,12 +22,19 @@ half-lives, reconstitution, and stacking — all stored locally on your device.
   injection site, and titration step-ups. Tap any dose to log or edit it; logged doses stay
   editable (dose, time, site, notes). "Manage" holds edit/pause/delete.
 - **Dose logging** — log actual quantity, time, injection site, and notes; reschedule or skip.
-  Logged rows show the *actual* recorded site, not the auto-rotation suggestion.
+  Pick the site by tapping a **body map** (recency-colored so overused zones show red); a
+  fresh log defaults to the *most-rested* zone. Optionally flag a **site reaction**
+  (redness/lump/pain/bruise). Logged rows show the *actual* recorded site.
+- **Injection map & zone volume** — an Insights view showing where doses landed: the body map
+  colored by recency plus a per-zone table of injection count + last-used over a 30/90-day
+  window, hottest zones first. Surfaces overuse (lipohypertrophy risk) and flags zones with
+  logged reactions. For daily abdomen dosers, an opt-in **clock-method dial** logs precise
+  12-position sites around the navel.
 - **Calendar** — tap any scheduled dose to log, reschedule, or skip
-- **Body map** — pick and track injection sites
 - **Peptide library** — peptide database with dosing data, plus stacking rules
-- **Calculators** — reconstitution calculator and half-life decay charts
-- **Vial inventory** — track stock on hand
+- **Calculators** — reconstitution calculator (with **IU→mg** converter for IU-dosed compounds
+  like HGH/HCG) and half-life decay charts
+- **Vial inventory** — track stock on hand, with a **run-out date forecast** from your dosing cadence
 - **Insights & health markers** — trends and self-reported markers over time
 - **Experience guides** — week-by-week timelines, side effects, and red flags (community + clinical sourced)
 - **Export / import** — back up and restore all data
@@ -55,6 +62,18 @@ All data lives in IndexedDB in the browser — nothing is sent to a server.
   logged rows show the real `injectionSite`. Per-dose logging/editing reuses
   `src/components/DoseActionSheet.tsx` (`logDose` for new, `updateDoseLog` for edits).
 
+## How injection tracking works
+
+- `src/data/injectionSites.ts` — the single source of truth for injection sites (8 subq zones
+  with SVG coordinates + 12 abdomen clock positions). `BodyMapSVG`, `DoseActionSheet`, and
+  `scheduleEngine` all read from it.
+- `src/utils/injectionStats.ts` — pure recency/volume helpers. `zoneStats()` aggregates logs
+  into per-zone counts + last-used; `daysSinceByLabel()` drives the map colors and folds
+  clock-method picks back into the abdomen zones; `mostRestedLabel()` picks the default log
+  site. `src/pages/InjectionMap.tsx` renders the stats view.
+- Sites are stored as label strings on each `DoseLog` (no schema migration); the map bridges
+  label↔id for coloring.
+
 ## Develop
 
 ```bash
@@ -62,6 +81,7 @@ npm install
 npm run dev      # start dev server
 npm run build    # type-check + production build
 npm run preview  # preview the build
+npm run test     # run unit tests (vitest)
 npm run lint
 ```
 
