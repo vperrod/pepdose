@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, differenceInMinutes, differenceInHours, differenceInWeeks, parseISO } from 'date-fns';
 import { Syringe, TrendingUp, ChevronRight, Zap } from 'lucide-react';
-import { getScheduledDosesForDate, getProtocols, getDoseLogsForDate } from '../db/operations';
+import { getScheduledDosesForDate, getProtocols, getDoseLogsForDate, getScheduledDosesForProtocol } from '../db/operations';
 import { getPeptideById } from '../data/peptides';
 import { scheduleDayNotifications, clearScheduledNotifications } from '../utils/notifications';
+import { nextTitrationStep, type NextStep } from '../utils/titrationCoach';
 import type { ScheduledDose, UserProtocol } from '../db/schema';
 
 interface DashboardDose extends ScheduledDose {
@@ -28,6 +29,7 @@ export function Dashboard() {
   const [protocols, setProtocols] = useState<UserProtocol[]>([]);
   const [logged, setLogged] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [coach, setCoach] = useState<NextStep | null>(null);
   const notifTimers = useRef<number[]>([]);
 
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -61,6 +63,14 @@ export function Dashboard() {
     load();
     return () => clearScheduledNotifications(notifTimers.current);
   }, [today]);
+
+  useEffect(() => {
+    (async () => {
+      const active = await getProtocols('active');
+      const allDoses = (await Promise.all(active.map(p => getScheduledDosesForProtocol(p.id)))).flat();
+      setCoach(nextTitrationStep(allDoses, new Date()));
+    })();
+  }, []);
 
   const completedCount = todayDoses.filter(d => d.status === 'logged' || logged.has(d.id)).length;
   const totalCount = todayDoses.length;
@@ -159,6 +169,23 @@ export function Dashboard() {
         >
           <p className="text-text-muted">No doses scheduled today</p>
           <p className="text-sm text-text-muted mt-1">Start a protocol to see your schedule</p>
+        </div>
+      )}
+
+      {coach && (
+        <div className="card-glass p-4 mb-5 stagger-item" style={{ animationDelay: '0.08s' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-warning-dim flex items-center justify-center shrink-0">
+              <TrendingUp className="w-5 h-5 text-warning" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-text-muted uppercase tracking-wider font-medium">Titration coach</p>
+              <p className="text-sm font-medium">
+                Week {coach.weekNumber} — {getPeptideById(coach.peptideId)?.name ?? coach.peptideId}: step up to {coach.dose} {coach.unit}
+              </p>
+            </div>
+            <p className="text-xs text-text-muted shrink-0">{format(parseISO(coach.date), 'EEE MMM d')}</p>
+          </div>
         </div>
       )}
 
