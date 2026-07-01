@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Activity, TrendingUp, Heart } from 'lucide-react';
+import { Activity, TrendingUp, Heart, MapPin } from 'lucide-react';
 
 export function Insights() {
   const navigate = useNavigate();
@@ -36,6 +36,16 @@ export function Insights() {
           <div>
             <p className="font-semibold">Dose History</p>
             <p className="text-sm text-text-muted">Log, heatmap, and export</p>
+          </div>
+        </button>
+
+        <button onClick={() => navigate('/injection-map')} className="card-glass w-full p-5 tap-target text-left stagger-item flex items-center gap-4" style={{ animationDelay: '0.2s' }}>
+          <div className="w-11 h-11 rounded-xl bg-secondary-dim flex items-center justify-center">
+            <MapPin className="w-5 h-5 text-secondary" />
+          </div>
+          <div>
+            <p className="font-semibold">Injection Map</p>
+            <p className="text-sm text-text-muted">Zone volume &amp; site rotation</p>
           </div>
         </button>
       </div>

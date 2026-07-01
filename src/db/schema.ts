@@ -42,6 +42,7 @@ export interface DoseLog {
   route: string;
   injectionSite?: string;
   notes?: string;
+  siteReaction?: 'redness' | 'lump' | 'pain' | 'bruise';
   createdAt: string;
 }
 

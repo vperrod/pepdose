@@ -1,15 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil } from 'lucide-react';
-import { logDose, updateScheduledDose, updateDoseLog } from '../db/operations';
+import { logDose, updateScheduledDose, updateDoseLog, getAllDoseLogs } from '../db/operations';
 import type { ScheduledDose, DoseLog } from '../db/schema';
-
-const INJECTION_SITES = [
-  'Left abdomen', 'Right abdomen',
-  'Left thigh (outer)', 'Right thigh (outer)',
-  'Left deltoid', 'Right deltoid',
-  'Left glute', 'Right glute',
-];
+import { SITE_LABELS, INJECTION_SITES } from '../data/injectionSites';
+import { BodyMapSVG } from './BodyMapSVG';
+import { AbdomenClockDial } from './AbdomenClockDial';
+import { daysSinceByLabel, mostRestedLabel } from '../utils/injectionStats';
 
 interface DoseActionSheetProps {
   dose: ScheduledDose & { peptideName: string; color: string };
@@ -20,17 +17,40 @@ interface DoseActionSheetProps {
 
 type SheetMode = 'actions' | 'log' | 'reschedule';
 
+const REACTIONS = ['redness', 'lump', 'pain', 'bruise'] as const;
+
 export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionSheetProps) {
   const isLogged = dose.status === 'logged';
   const [mode, setMode] = useState<SheetMode>('log');
   const [actualDose, setActualDose] = useState(parseFloat((log?.dose ?? dose.dose).toPrecision(10)));
   const [actualTime, setActualTime] = useState(log?.time ?? format(new Date(), 'HH:mm'));
-  const [site, setSite] = useState(log?.injectionSite || dose.suggestedSite || INJECTION_SITES[0]);
+  const [site, setSite] = useState(log?.injectionSite || dose.suggestedSite || SITE_LABELS[0]);
   const [notes, setNotes] = useState(log?.notes ?? '');
+  const [reaction, setReaction] = useState<typeof REACTIONS[number] | undefined>(log?.siteReaction);
   const [saving, setSaving] = useState(false);
+  const [daysMap, setDaysMap] = useState<Record<string, number>>({});
+  const [showClock, setShowClock] = useState(false);
+  const isAbdomen = site.startsWith('Left abdomen') || site.startsWith('Right abdomen') || site.startsWith('Abdomen');
+
+  const userPickedSite = useRef(false);
 
   const [newDate, setNewDate] = useState(dose.date);
   const [newTime, setNewTime] = useState(dose.time);
+
+  useEffect(() => {
+    getAllDoseLogs().then(logs => {
+      const ds = daysSinceByLabel(logs, new Date());
+      setDaysMap(ds);
+      // only auto-pick a rested zone when logging fresh (no existing site chosen)
+      if (!log?.injectionSite && !dose.suggestedSite && !userPickedSite.current) setSite(mostRestedLabel(SITE_LABELS, ds));
+    });
+  }, [log?.injectionSite, dose.suggestedSite]);
+
+  const idByLabel = Object.fromEntries(INJECTION_SITES.map(s => [s.label, s.id]));
+  const labelById = Object.fromEntries(INJECTION_SITES.map(s => [s.id, s.label]));
+  const daysById = Object.fromEntries(
+    Object.entries(daysMap).map(([label, d]) => [idByLabel[label], d]).filter(([id]) => id),
+  );
 
   async function handleLog() {
     setSaving(true);
@@ -39,6 +59,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
         time: actualTime,
         dose: actualDose,
         injectionSite: site,
+        siteReaction: reaction,
         notes: notes || undefined,
       });
     } else {
@@ -52,6 +73,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
         unit: dose.unit,
         route: dose.route,
         injectionSite: site,
+        siteReaction: reaction,
         notes: notes || undefined,
       });
     }
@@ -181,18 +203,32 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
                   <MapPin className="w-3 h-3 inline mr-1" />
                   Injection Site
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {INJECTION_SITES.map(s => (
+                <BodyMapSVG
+                  selectedSite={idByLabel[site]}
+                  onSelectSite={(id) => { userPickedSite.current = true; setSite(labelById[id]); }}
+                  daysSinceMap={daysById}
+                />
+                <p className="text-center text-xs text-text-muted mt-1">{site}</p>
+                {isAbdomen && (
+                  <button onClick={() => setShowClock(v => !v)} className="block mx-auto mt-2 text-xs text-primary underline">
+                    {showClock ? 'Hide' : 'Use'} clock method
+                  </button>
+                )}
+                {showClock && <AbdomenClockDial selected={site} onSelect={(label) => { userPickedSite.current = true; setSite(label); }} />}
+              </div>
+
+              <div>
+                <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">Site reaction (optional)</label>
+                <div className="flex flex-wrap gap-2">
+                  {REACTIONS.map(r => (
                     <button
-                      key={s}
-                      onClick={() => setSite(s)}
-                      className={`px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                        site === s
-                          ? 'bg-primary/20 text-primary ring-1 ring-primary/40'
-                          : 'bg-card border border-border text-text-secondary hover:bg-card-hover'
+                      key={r}
+                      onClick={() => setReaction(reaction === r ? undefined : r)}
+                      className={`px-3 py-2 rounded-xl text-xs font-medium capitalize transition-colors ${
+                        reaction === r ? 'bg-warning/20 text-warning ring-1 ring-warning/40' : 'bg-card border border-border text-text-secondary'
                       }`}
                     >
-                      {s}
+                      {r}
                     </button>
                   ))}
                 </div>

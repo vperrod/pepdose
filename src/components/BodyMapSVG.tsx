@@ -1,13 +1,7 @@
 import { useState } from 'react';
-
-export interface SiteInfo {
-  id: string;
-  label: string;
-  lastUsed?: string;
-}
+import { INJECTION_SITES, type BodyView } from '../data/injectionSites';
 
 interface BodyMapProps {
-  sites: SiteInfo[];
   selectedSite?: string;
   onSelectSite: (siteId: string) => void;
   daysSinceMap?: Record<string, number>;
@@ -20,25 +14,10 @@ function getSiteColor(days: number | undefined): string {
   return '#ef4444';
 }
 
-const BODY_SITES = {
-  front: [
-    { id: 'left-abdomen', label: 'Left abdomen', cx: 82, cy: 185, r: 14 },
-    { id: 'right-abdomen', label: 'Right abdomen', cx: 118, cy: 185, r: 14 },
-    { id: 'left-thigh', label: 'Left thigh (outer)', cx: 72, cy: 265, r: 13 },
-    { id: 'right-thigh', label: 'Right thigh (outer)', cx: 128, cy: 265, r: 13 },
-    { id: 'left-deltoid', label: 'Left deltoid', cx: 55, cy: 115, r: 12 },
-    { id: 'right-deltoid', label: 'Right deltoid', cx: 145, cy: 115, r: 12 },
-  ],
-  back: [
-    { id: 'left-glute', label: 'Left glute', cx: 80, cy: 215, r: 15 },
-    { id: 'right-glute', label: 'Right glute', cx: 120, cy: 215, r: 15 },
-  ],
-};
-
 export function BodyMapSVG({ selectedSite, onSelectSite, daysSinceMap = {} }: BodyMapProps) {
-  const [view, setView] = useState<'front' | 'back'>('front');
+  const [view, setView] = useState<BodyView>('front');
 
-  const currentSites = BODY_SITES[view];
+  const currentSites = INJECTION_SITES.filter(s => s.view === view);
 
   return (
     <div>
