@@ -23,6 +23,7 @@ export function InjectionMap() {
     Object.entries(daysMap).map(([label, d]) => [idByLabel[label], d]).filter(([id]) => id),
   );
   const maxCount = Math.max(1, ...stats.map(s => s.count));
+  const reactionLabels = new Set(logs.filter(l => l.siteReaction && l.injectionSite).map(l => l.injectionSite!));
 
   return (
     <div className="safe-top px-5 pt-4">
@@ -54,6 +55,7 @@ export function InjectionMap() {
         {stats.map(s => (
           <div key={s.label} className="flex items-center gap-3">
             <span className="text-sm w-32 shrink-0">{s.label}</span>
+            {reactionLabels.has(s.label) && <span className="text-xs text-warning" title="Reaction logged here">⚠</span>}
             <div className="flex-1 h-2 rounded-full bg-card overflow-hidden">
               <div className="h-full bg-primary" style={{ width: `${(s.count / maxCount) * 100}%` }} />
             </div>

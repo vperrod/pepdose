@@ -16,6 +16,8 @@ interface DoseActionSheetProps {
 
 type SheetMode = 'actions' | 'log' | 'reschedule';
 
+const REACTIONS = ['redness', 'lump', 'pain', 'bruise'] as const;
+
 export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionSheetProps) {
   const isLogged = dose.status === 'logged';
   const [mode, setMode] = useState<SheetMode>('log');
@@ -23,6 +25,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
   const [actualTime, setActualTime] = useState(log?.time ?? format(new Date(), 'HH:mm'));
   const [site, setSite] = useState(log?.injectionSite || dose.suggestedSite || SITE_LABELS[0]);
   const [notes, setNotes] = useState(log?.notes ?? '');
+  const [reaction, setReaction] = useState<typeof REACTIONS[number] | undefined>(log?.siteReaction);
   const [saving, setSaving] = useState(false);
   const [daysMap, setDaysMap] = useState<Record<string, number>>({});
 
@@ -53,6 +56,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
         time: actualTime,
         dose: actualDose,
         injectionSite: site,
+        siteReaction: reaction,
         notes: notes || undefined,
       });
     } else {
@@ -66,6 +70,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
         unit: dose.unit,
         route: dose.route,
         injectionSite: site,
+        siteReaction: reaction,
         notes: notes || undefined,
       });
     }
@@ -201,6 +206,23 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
                   daysSinceMap={daysById}
                 />
                 <p className="text-center text-xs text-text-muted mt-1">{site}</p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">Site reaction (optional)</label>
+                <div className="flex flex-wrap gap-2">
+                  {REACTIONS.map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setReaction(reaction === r ? undefined : r)}
+                      className={`px-3 py-2 rounded-xl text-xs font-medium capitalize transition-colors ${
+                        reaction === r ? 'bg-warning/20 text-warning ring-1 ring-warning/40' : 'bg-card border border-border text-text-secondary'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
