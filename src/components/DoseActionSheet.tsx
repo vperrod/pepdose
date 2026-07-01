@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil } from 'lucide-react';
 import { logDose, updateScheduledDose, updateDoseLog, getAllDoseLogs } from '../db/operations';
@@ -26,6 +26,8 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
   const [saving, setSaving] = useState(false);
   const [daysMap, setDaysMap] = useState<Record<string, number>>({});
 
+  const userPickedSite = useRef(false);
+
   const [newDate, setNewDate] = useState(dose.date);
   const [newTime, setNewTime] = useState(dose.time);
 
@@ -34,7 +36,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
       const ds = daysSinceByLabel(logs, new Date());
       setDaysMap(ds);
       // only auto-pick a rested zone when logging fresh (no existing site chosen)
-      if (!log?.injectionSite && !dose.suggestedSite) setSite(mostRestedLabel(SITE_LABELS, ds));
+      if (!log?.injectionSite && !dose.suggestedSite && !userPickedSite.current) setSite(mostRestedLabel(SITE_LABELS, ds));
     });
   }, [log?.injectionSite, dose.suggestedSite]);
 
@@ -195,7 +197,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
                 </label>
                 <BodyMapSVG
                   selectedSite={idByLabel[site]}
-                  onSelectSite={(id) => setSite(labelById[id])}
+                  onSelectSite={(id) => { userPickedSite.current = true; setSite(labelById[id]); }}
                   daysSinceMap={daysById}
                 />
                 <p className="text-center text-xs text-text-muted mt-1">{site}</p>
