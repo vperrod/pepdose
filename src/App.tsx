@@ -18,6 +18,7 @@ import { ExportImport } from './pages/ExportImport';
 import { Settings } from './pages/Settings';
 import { DoseHistory } from './pages/DoseHistory';
 import { Onboarding } from './pages/Onboarding';
+import { InjectionMap } from './pages/InjectionMap';
 
 export default function App() {
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('pepdose-onboarded') === 'true');
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/export" element={<ExportImport />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/history" element={<DoseHistory />} />
+            <Route path="/injection-map" element={<InjectionMap />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
