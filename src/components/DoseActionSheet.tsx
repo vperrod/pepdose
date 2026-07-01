@@ -5,6 +5,7 @@ import { logDose, updateScheduledDose, updateDoseLog, getAllDoseLogs } from '../
 import type { ScheduledDose, DoseLog } from '../db/schema';
 import { SITE_LABELS, INJECTION_SITES } from '../data/injectionSites';
 import { BodyMapSVG } from './BodyMapSVG';
+import { AbdomenClockDial } from './AbdomenClockDial';
 import { daysSinceByLabel, mostRestedLabel } from '../utils/injectionStats';
 
 interface DoseActionSheetProps {
@@ -28,6 +29,8 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
   const [reaction, setReaction] = useState<typeof REACTIONS[number] | undefined>(log?.siteReaction);
   const [saving, setSaving] = useState(false);
   const [daysMap, setDaysMap] = useState<Record<string, number>>({});
+  const [showClock, setShowClock] = useState(false);
+  const isAbdomen = site.startsWith('Left abdomen') || site.startsWith('Right abdomen') || site.startsWith('Abdomen');
 
   const userPickedSite = useRef(false);
 
@@ -206,6 +209,12 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
                   daysSinceMap={daysById}
                 />
                 <p className="text-center text-xs text-text-muted mt-1">{site}</p>
+                {isAbdomen && (
+                  <button onClick={() => setShowClock(v => !v)} className="block mx-auto mt-2 text-xs text-primary underline">
+                    {showClock ? 'Hide' : 'Use'} clock method
+                  </button>
+                )}
+                {showClock && <AbdomenClockDial selected={site} onSelect={setSite} />}
               </div>
 
               <div>
