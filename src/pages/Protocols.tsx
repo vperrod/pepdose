@@ -8,6 +8,7 @@ import {
   getDoseLogsForProtocol,
 } from '../db/operations';
 import { getPeptideById, type Peptide } from '../data/peptides';
+import { getCurrentWeekGuide } from '../data/experienceTimelines';
 import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
 import { DoseActionSheet } from '../components/DoseActionSheet';
 import type { UserProtocol, ScheduledDose, DoseLog } from '../db/schema';
@@ -349,6 +350,34 @@ export function Protocols() {
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary-dim text-primary">now</span>
                           )}
                         </div>
+                        {(() => {
+                          const weekPeptideIds = [...new Set(sorted.filter(d => d.weekNumber === week).map(d => d.peptideId))];
+                          const guides = weekPeptideIds
+                            .map(pid => ({ pid, guide: getCurrentWeekGuide(pid, week) }))
+                            .filter(g => g.guide);
+                          if (guides.length === 0) return null;
+                          return (
+                            <div className="space-y-2 mb-2">
+                              {guides.map(({ pid, guide }) => (
+                                <div key={pid} className="rounded-xl bg-card border border-border px-3 py-2.5">
+                                  <p className="text-xs font-semibold text-secondary mb-1">
+                                    {getPeptideById(pid)?.name}: {guide!.title}
+                                  </p>
+                                  <p className="text-[11px] text-text-muted leading-relaxed">{guide!.description}</p>
+                                  {guide!.tips.length > 0 && (
+                                    <ul className="mt-1.5 space-y-0.5">
+                                      {guide!.tips.map((tip, i) => (
+                                        <li key={i} className="text-[11px] text-text-secondary flex gap-1.5">
+                                          <span className="text-secondary">•</span>{tip}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                         <div className="space-y-1.5">
                           {sorted.filter(d => d.weekNumber === week).map(d => {
                             const pep = getPeptideById(d.peptideId);
