@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil } from 'lucide-react';
-import { logDose, updateScheduledDose } from '../db/operations';
-import type { ScheduledDose } from '../db/schema';
+import { logDose, updateScheduledDose, updateDoseLog } from '../db/operations';
+import type { ScheduledDose, DoseLog } from '../db/schema';
 
 const INJECTION_SITES = [
   'Left abdomen', 'Right abdomen',
@@ -13,39 +13,48 @@ const INJECTION_SITES = [
 
 interface DoseActionSheetProps {
   dose: ScheduledDose & { peptideName: string; color: string };
+  log?: DoseLog;
   onClose: () => void;
   onUpdated: () => void;
 }
 
 type SheetMode = 'actions' | 'log' | 'reschedule';
 
-export function DoseActionSheet({ dose, onClose, onUpdated }: DoseActionSheetProps) {
-  const [mode, setMode] = useState<SheetMode>(dose.status === 'logged' ? 'actions' : 'log');
-  const [actualDose, setActualDose] = useState(parseFloat(dose.dose.toPrecision(10)));
-  const [actualTime, setActualTime] = useState(format(new Date(), 'HH:mm'));
-  const [site, setSite] = useState(dose.suggestedSite || INJECTION_SITES[0]);
-  const [notes, setNotes] = useState('');
+export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionSheetProps) {
+  const isLogged = dose.status === 'logged';
+  const [mode, setMode] = useState<SheetMode>('log');
+  const [actualDose, setActualDose] = useState(parseFloat((log?.dose ?? dose.dose).toPrecision(10)));
+  const [actualTime, setActualTime] = useState(log?.time ?? format(new Date(), 'HH:mm'));
+  const [site, setSite] = useState(log?.injectionSite || dose.suggestedSite || INJECTION_SITES[0]);
+  const [notes, setNotes] = useState(log?.notes ?? '');
   const [saving, setSaving] = useState(false);
 
   const [newDate, setNewDate] = useState(dose.date);
   const [newTime, setNewTime] = useState(dose.time);
 
-  const isLogged = dose.status === 'logged';
-
   async function handleLog() {
     setSaving(true);
-    await logDose({
-      scheduledDoseId: dose.id,
-      protocolId: dose.protocolId,
-      peptideId: dose.peptideId,
-      date: dose.date,
-      time: actualTime,
-      dose: actualDose,
-      unit: dose.unit,
-      route: dose.route,
-      injectionSite: site,
-      notes: notes || undefined,
-    });
+    if (log) {
+      await updateDoseLog(log.id, {
+        time: actualTime,
+        dose: actualDose,
+        injectionSite: site,
+        notes: notes || undefined,
+      });
+    } else {
+      await logDose({
+        scheduledDoseId: dose.id,
+        protocolId: dose.protocolId,
+        peptideId: dose.peptideId,
+        date: dose.date,
+        time: actualTime,
+        dose: actualDose,
+        unit: dose.unit,
+        route: dose.route,
+        injectionSite: site,
+        notes: notes || undefined,
+      });
+    }
     onUpdated();
     onClose();
   }
@@ -215,7 +224,7 @@ export function DoseActionSheet({ dose, onClose, onUpdated }: DoseActionSheetPro
                   disabled={saving || actualDose <= 0}
                   className="flex-1 px-4 py-3 rounded-xl bg-primary text-bg text-sm font-semibold disabled:opacity-40"
                 >
-                  {saving ? 'Saving...' : 'Log Dose'}
+                  {saving ? 'Saving...' : log ? 'Save Changes' : 'Log Dose'}
                 </button>
               </div>
             </div>

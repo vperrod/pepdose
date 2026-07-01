@@ -164,6 +164,18 @@ export async function getDoseLogsForPeptide(peptideId: string): Promise<DoseLog[
   return db.getAllFromIndex('doseLogs', 'by-peptide', peptideId);
 }
 
+export async function getDoseLogsForProtocol(protocolId: string): Promise<DoseLog[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('doseLogs', 'by-protocol', protocolId);
+}
+
+export async function updateDoseLog(id: string, updates: Partial<DoseLog>): Promise<void> {
+  const db = await getDB();
+  const existing = await db.get('doseLogs', id);
+  if (!existing) return;
+  await db.put('doseLogs', { ...existing, ...updates });
+}
+
 export async function getAllDoseLogs(): Promise<DoseLog[]> {
   const db = await getDB();
   return db.getAll('doseLogs');

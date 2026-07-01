@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { differenceInWeeks, parseISO, format } from 'date-fns';
 import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle } from 'lucide-react';
 import {
   getProtocols, deleteProtocol, updateProtocol,
   getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
+  getDoseLogsForProtocol,
 } from '../db/operations';
 import { getPeptideById, type Peptide } from '../data/peptides';
 import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
-import type { UserProtocol, ScheduledDose } from '../db/schema';
+import { DoseActionSheet } from '../components/DoseActionSheet';
+import type { UserProtocol, ScheduledDose, DoseLog } from '../db/schema';
 
 const CATEGORY_COLORS: Record<string, string> = {
   healing: '#22c55e',
@@ -41,6 +43,7 @@ type SheetMode = 'journey' | 'actions' | 'edit' | 'delete';
 
 export function Protocols() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [protocols, setProtocols] = useState<UserProtocol[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeProto, setActiveProto] = useState<UserProtocol | null>(null);
@@ -48,6 +51,9 @@ export function Protocols() {
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [journeyDoses, setJourneyDoses] = useState<ScheduledDose[]>([]);
+  const [journeyLogs, setJourneyLogs] = useState<DoseLog[]>([]);
+  const [selectedDose, setSelectedDose] = useState<(ScheduledDose & { peptideName: string; color: string }) | null>(null);
+  const [selectedLog, setSelectedLog] = useState<DoseLog | undefined>(undefined);
 
   // Edit state
   const [editDoses, setEditDoses] = useState<UserProtocol['doses']>([]);
@@ -58,17 +64,35 @@ export function Protocols() {
     loadProtocols();
   }, []);
 
+  useEffect(() => {
+    const openId = (location.state as { openId?: string } | null)?.openId;
+    if (!openId || protocols.length === 0) return;
+    const proto = protocols.find(p => p.id === openId);
+    if (proto) openSheet(proto);
+    navigate('.', { replace: true, state: null });
+  }, [protocols, location.state]);
+
   async function loadProtocols() {
     const p = await getProtocols();
     setProtocols(p);
     setLoading(false);
   }
 
+  async function loadJourney(protocolId: string) {
+    setJourneyDoses([]);
+    setJourneyLogs([]);
+    const [doses, logs] = await Promise.all([
+      getScheduledDosesForProtocol(protocolId),
+      getDoseLogsForProtocol(protocolId),
+    ]);
+    setJourneyDoses(doses);
+    setJourneyLogs(logs);
+  }
+
   function openSheet(proto: UserProtocol) {
     setActiveProto(proto);
     setSheetMode('journey');
-    setJourneyDoses([]);
-    getScheduledDosesForProtocol(proto.id).then(setJourneyDoses);
+    loadJourney(proto.id);
     setEditDoses(proto.doses.map(d => {
       const pep = getPeptideById(d.peptideId);
       // Backfill a phased variant for older records that predate variants.
@@ -90,6 +114,19 @@ export function Protocols() {
   function closeSheet() {
     setActiveProto(null);
     setSheetMode('actions');
+  }
+
+  function openDoseEditor(dose: ScheduledDose, log?: DoseLog) {
+    const pep = getPeptideById(dose.peptideId);
+    const color = CATEGORY_COLORS[pep?.category ?? 'healing'] ?? '#00d4aa';
+    setSelectedDose({ ...dose, peptideName: pep?.name ?? dose.peptideId, color });
+    setSelectedLog(log);
+  }
+
+  async function handleDoseUpdated() {
+    if (activeProto) await loadJourney(activeProto.id);
+    setSelectedDose(null);
+    setSelectedLog(undefined);
   }
 
   async function handleDelete() {
@@ -277,6 +314,8 @@ export function Protocols() {
                 const logged = sorted.filter(d => d.status === 'logged').length;
                 const nowWeek = Math.max(1, differenceInWeeks(new Date(), parseISO(activeProto.startDate)) + 1);
                 const weeks = [...new Set(sorted.map(d => d.weekNumber))].sort((a, b) => a - b);
+                const logByDose = new Map(
+                  journeyLogs.filter(l => l.scheduledDoseId).map(l => [l.scheduledDoseId!, l]));
                 const STATUS: Record<string, { color: string; label: string }> = {
                   logged: { color: '#22c55e', label: 'done' },
                   upcoming: { color: '#64748b', label: 'upcoming' },
@@ -314,8 +353,15 @@ export function Protocols() {
                           {sorted.filter(d => d.weekNumber === week).map(d => {
                             const pep = getPeptideById(d.peptideId);
                             const st = STATUS[d.status] ?? STATUS.upcoming;
+                            const log = logByDose.get(d.id);
+                            const shownDose = d.status === 'logged' ? (log?.dose ?? d.dose) : d.dose;
+                            const shownSite = d.status === 'logged' ? log?.injectionSite : d.suggestedSite;
                             return (
-                              <div key={d.id} className="flex items-center gap-3 card-glass px-3 py-2.5">
+                              <button
+                                key={d.id}
+                                onClick={() => openDoseEditor(d, log)}
+                                className="w-full text-left flex items-center gap-3 card-glass px-3 py-2.5 tap-target"
+                              >
                                 {d.status === 'logged'
                                   ? <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: st.color }} />
                                   : <Circle className="w-4 h-4 shrink-0" style={{ color: st.color }} />}
@@ -327,10 +373,10 @@ export function Protocols() {
                                     )}
                                   </div>
                                   <p className="text-[11px] text-text-muted font-mono">
-                                    {format(parseISO(d.date), 'EEE MMM d')} · {d.dose} {d.unit}
-                                    {d.suggestedSite && (
+                                    {format(parseISO(d.date), 'EEE MMM d')} · {shownDose} {d.unit}
+                                    {shownSite && (
                                       <span className="inline-flex items-center gap-0.5 ml-1.5">
-                                        <MapPin className="w-3 h-3" />{d.suggestedSite}
+                                        <MapPin className="w-3 h-3" />{shownSite}
                                       </span>
                                     )}
                                   </p>
@@ -341,7 +387,7 @@ export function Protocols() {
                                 >
                                   {st.label}
                                 </span>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -630,6 +676,15 @@ export function Protocols() {
             </div>
           </div>
         </>
+      )}
+
+      {selectedDose && (
+        <DoseActionSheet
+          dose={selectedDose}
+          log={selectedLog}
+          onClose={() => { setSelectedDose(null); setSelectedLog(undefined); }}
+          onUpdated={handleDoseUpdated}
+        />
       )}
     </div>
   );

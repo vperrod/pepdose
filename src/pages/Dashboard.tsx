@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format, differenceInMinutes, differenceInHours, differenceInWeeks, parseISO } from 'date-fns';
 import { Syringe, TrendingUp, ChevronRight, Zap } from 'lucide-react';
 import { getScheduledDosesForDate, getProtocols, getDoseLogsForDate } from '../db/operations';
@@ -22,6 +23,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [todayDoses, setTodayDoses] = useState<DashboardDose[]>([]);
   const [protocols, setProtocols] = useState<UserProtocol[]>([]);
   const [logged, setLogged] = useState<Set<string>>(new Set());
@@ -223,7 +225,11 @@ export function Dashboard() {
               const progress = (currentWeek / proto.durationWeeks) * 100;
 
               return (
-                <div key={proto.id} className="card-glass p-4">
+                <button
+                  key={proto.id}
+                  onClick={() => navigate('/protocols', { state: { openId: proto.id } })}
+                  className="card-glass p-4 w-full text-left tap-target block"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div
@@ -244,7 +250,7 @@ export function Dashboard() {
                       style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: color }}
                     />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
