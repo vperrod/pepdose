@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Calculator, Droplets, ChevronDown } from 'lucide-react';
 import { PEPTIDES } from '../data/peptides';
+import { mgToIu } from '../utils/iuConvert';
 
 // ponytail: only injectable peptides with reconstitution data make sense here
 const RECON_PEPTIDES = PEPTIDES.filter(p => p.reconstitution.typicalVialMg > 0);
@@ -11,6 +12,8 @@ export function ReconCalculator() {
   const [desiredDose, setDesiredDose] = useState('');
   const [doseUnit, setDoseUnit] = useState<'mcg' | 'mg'>('mcg');
   const [selectedPeptide, setSelectedPeptide] = useState('');
+  const [iuMg, setIuMg] = useState('');       // mg to convert
+  const [mgPerIu, setMgPerIu] = useState('0.333'); // HGH default 1mg≈3IU
 
   function handlePeptideSelect(id: string) {
     setSelectedPeptide(id);
@@ -39,6 +42,8 @@ export function ReconCalculator() {
   // syringe visual: max 100 IU = 1ml, clamp for display
   const syringeFill = valid ? Math.min(iu / 100, 1) : 0;
   const syringeWarning = iu > 100;
+
+  const iuResult = parseFloat(iuMg) > 0 && parseFloat(mgPerIu) > 0 ? mgToIu(parseFloat(iuMg), parseFloat(mgPerIu)) : 0;
 
   return (
     <div className="safe-top px-5 pt-4 pb-28">
@@ -217,6 +222,23 @@ export function ReconCalculator() {
           </div>
         </div>
       )}
+
+      <div className="card-glass p-5 mt-4">
+        <h2 className="font-semibold mb-3 flex items-center gap-2"><Droplets className="w-4 h-4 text-secondary" /> IU ↔ mg</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Dose (mg)</label>
+            <input type="number" step="any" value={iuMg} onChange={e => setIuMg(e.target.value)}
+              className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1">mg per IU</label>
+            <input type="number" step="any" value={mgPerIu} onChange={e => setMgPerIu(e.target.value)}
+              className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-primary" />
+          </div>
+        </div>
+        <p className="text-sm mt-3 font-mono text-primary">= {iuResult.toFixed(2)} IU</p>
+      </div>
     </div>
   );
 }
