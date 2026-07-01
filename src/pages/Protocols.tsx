@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { differenceInWeeks, parseISO, format } from 'date-fns';
-import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle } from 'lucide-react';
+import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle, Sparkles } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
   getProtocols, deleteProtocol, updateProtocol,
   getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
-  getDoseLogsForProtocol,
+  getDoseLogsForProtocol, getProtocol, getHealthMarkers,
 } from '../db/operations';
 import { getPeptideById, type Peptide } from '../data/peptides';
+import { getCurrentWeekGuide } from '../data/experienceTimelines';
 import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
 import { DoseActionSheet } from '../components/DoseActionSheet';
-import type { UserProtocol, ScheduledDose, DoseLog } from '../db/schema';
+import type { UserProtocol, ScheduledDose, DoseLog, HealthMarker } from '../db/schema';
 
 const CATEGORY_COLORS: Record<string, string> = {
   healing: '#22c55e',
@@ -52,6 +54,8 @@ export function Protocols() {
   const [saving, setSaving] = useState(false);
   const [journeyDoses, setJourneyDoses] = useState<ScheduledDose[]>([]);
   const [journeyLogs, setJourneyLogs] = useState<DoseLog[]>([]);
+  const [journeyMarkers, setJourneyMarkers] = useState<HealthMarker[]>([]);
+  const [metric, setMetric] = useState<'weight' | 'sleepQuality' | 'energy' | 'mood'>('weight');
   const [selectedDose, setSelectedDose] = useState<(ScheduledDose & { peptideName: string; color: string }) | null>(null);
   const [selectedLog, setSelectedLog] = useState<DoseLog | undefined>(undefined);
 
@@ -81,12 +85,18 @@ export function Protocols() {
   async function loadJourney(protocolId: string) {
     setJourneyDoses([]);
     setJourneyLogs([]);
+    setJourneyMarkers([]);
     const [doses, logs] = await Promise.all([
       getScheduledDosesForProtocol(protocolId),
       getDoseLogsForProtocol(protocolId),
     ]);
     setJourneyDoses(doses);
     setJourneyLogs(logs);
+    const proto = await getProtocol(protocolId);
+    if (proto) {
+      const markers = await getHealthMarkers(proto.startDate, format(new Date(), 'yyyy-MM-dd'));
+      setJourneyMarkers(markers);
+    }
   }
 
   function openSheet(proto: UserProtocol) {
@@ -223,6 +233,9 @@ export function Protocols() {
     <div className="safe-top px-5 pt-4 pb-28">
       <div className="flex items-center justify-between mb-5 stagger-item">
         <h1 className="text-xl font-bold">Protocols</h1>
+        <button onClick={() => navigate('/find')} className="tap-target flex items-center gap-1.5 text-xs font-medium text-secondary bg-card px-3 py-2 rounded-lg">
+          <Sparkles className="w-4 h-4" /> Find
+        </button>
         <button onClick={() => navigate('/protocols/new')} className="tap-target flex items-center gap-2 bg-primary text-bg font-semibold text-sm px-4 py-2.5 rounded-xl">
           <Plus className="w-4 h-4" />
           New
@@ -337,6 +350,46 @@ export function Protocols() {
                       </button>
                     </div>
 
+                    {(() => {
+                      const METRICS: { key: typeof metric; label: string; color: string }[] = [
+                        { key: 'weight', label: 'Weight', color: '#00d4aa' },
+                        { key: 'sleepQuality', label: 'Sleep', color: '#6366f1' },
+                        { key: 'energy', label: 'Energy', color: '#f59e0b' },
+                        { key: 'mood', label: 'Mood', color: '#ec4899' },
+                      ];
+                      const active = METRICS.find(m => m.key === metric)!;
+                      const data = journeyMarkers
+                        .filter(m => m[metric] != null)
+                        .map(m => ({ date: format(parseISO(m.date), 'MMM d'), value: m[metric] as number }));
+                      return (
+                        <div className="card-glass p-3">
+                          <div className="flex gap-1.5 mb-2 flex-wrap">
+                            {METRICS.map(m => (
+                              <button key={m.key} onClick={() => setMetric(m.key)}
+                                className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${
+                                  metric === m.key ? 'bg-primary text-bg' : 'bg-card text-text-secondary border border-border'
+                                }`}>
+                                {m.label}
+                              </button>
+                            ))}
+                          </div>
+                          {data.length === 0 ? (
+                            <p className="text-xs text-text-muted text-center py-6">No {active.label.toLowerCase()} logged in this range.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height={160}>
+                              <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#1e2a42" />
+                                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} width={28} domain={['auto', 'auto']} />
+                                <Tooltip contentStyle={{ background: '#0f1729', border: '1px solid #1e2a42', borderRadius: 8, fontSize: 12 }} />
+                                <Line type="monotone" dataKey="value" stroke={active.color} strokeWidth={2} dot={{ r: 2 }} name={active.label} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {sorted.length === 0 ? (
                       <p className="text-sm text-text-muted text-center py-8">
                         No doses scheduled yet.
@@ -349,6 +402,34 @@ export function Protocols() {
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary-dim text-primary">now</span>
                           )}
                         </div>
+                        {(() => {
+                          const weekPeptideIds = [...new Set(sorted.filter(d => d.weekNumber === week).map(d => d.peptideId))];
+                          const guides = weekPeptideIds
+                            .map(pid => ({ pid, guide: getCurrentWeekGuide(pid, week) }))
+                            .filter(g => g.guide);
+                          if (guides.length === 0) return null;
+                          return (
+                            <div className="space-y-2 mb-2">
+                              {guides.map(({ pid, guide }) => (
+                                <div key={pid} className="rounded-xl bg-card border border-border px-3 py-2.5">
+                                  <p className="text-xs font-semibold text-secondary mb-1">
+                                    {getPeptideById(pid)?.name}: {guide!.title}
+                                  </p>
+                                  <p className="text-[11px] text-text-muted leading-relaxed">{guide!.description}</p>
+                                  {guide!.tips.length > 0 && (
+                                    <ul className="mt-1.5 space-y-0.5">
+                                      {guide!.tips.map((tip, i) => (
+                                        <li key={i} className="text-[11px] text-text-secondary flex gap-1.5">
+                                          <span className="text-secondary">•</span>{tip}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                         <div className="space-y-1.5">
                           {sorted.filter(d => d.weekNumber === week).map(d => {
                             const pep = getPeptideById(d.peptideId);

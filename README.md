@@ -20,7 +20,14 @@ half-lives, reconstitution, and stacking — all stored locally on your device.
 - **Protocol journey** — tap a protocol (from the Protocols list or a Dashboard card) to see
   its full timeline: every dose grouped by week, status (done/upcoming/missed/skipped),
   injection site, and titration step-ups. Tap any dose to log or edit it; logged doses stay
-  editable (dose, time, site, notes). "Manage" holds edit/pause/delete.
+  editable (dose, time, site, notes). "Manage" holds edit/pause/delete. Each week shows the
+  **expected experience guide** for that week inline (what to expect, tips), and an **outcome
+  overlay** charts a health marker (weight/sleep/energy/mood) across the protocol so you can
+  see if it's working.
+- **Find a protocol** — pick a goal (healing, weight loss, growth hormone, etc.) and get the
+  matching peptides + documented **synergy stacks**, one tap to a prefilled new protocol.
+- **Titration coach** — the Dashboard flags your next upcoming dose step-up ("Week 4 — step up
+  to 4mg on Mon"), computed from the titration ladder. Rule-based, works offline.
 - **Dose logging** — log actual quantity, time, injection site, and notes; reschedule or skip.
   Pick the site by tapping a **body map** (recency-colored so overused zones show red); a
   fresh log defaults to the *most-rested* zone. Optionally flag a **site reaction**
@@ -73,6 +80,17 @@ All data lives in IndexedDB in the browser — nothing is sent to a server.
   site. `src/pages/InjectionMap.tsx` renders the stats view.
 - Sites are stored as label strings on each `DoseLog` (no schema migration); the map bridges
   label↔id for coloring.
+
+## How protocol guidance works
+
+- `src/data/experienceTimelines.ts` — `getCurrentWeekGuide(peptideId, week)` feeds the inline
+  week-by-week guide in the journey.
+- `src/utils/titrationCoach.ts` — `nextTitrationStep(doses, today)` finds the next upcoming
+  `isTitrationStepUp` dose (flagged by the schedule engine) for the Dashboard coach. Pure, no AI.
+- `src/utils/goalPicker.ts` — `peptidesForGoal(category)` + `synergyStacksFor(category)` power the
+  `/find` picker (only `synergy` stacks surface). Picks navigate to `NewProtocol` with
+  `preselectPeptideIds` in router state.
+- The outcome overlay reuses the `HealthMarkers` recharts pattern with `getHealthMarkers(start, end)`.
 
 ## Develop
 

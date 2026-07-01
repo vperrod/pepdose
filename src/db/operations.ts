@@ -239,7 +239,8 @@ export async function getHealthMarkers(startDate?: string, endDate?: string): Pr
   const db = await getDB();
   const all = await db.getAll('healthMarkers');
   if (startDate && endDate) {
-    return all.filter(m => m.date >= startDate && m.date <= endDate);
+    return all.filter(m => m.date >= startDate && m.date <= endDate)
+              .sort((a, b) => a.date.localeCompare(b.date));
   }
   return all.sort((a, b) => a.date.localeCompare(b.date));
 }
