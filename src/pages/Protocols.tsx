@@ -2,16 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { differenceInWeeks, parseISO, format } from 'date-fns';
 import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle, Sparkles } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
   getProtocols, deleteProtocol, updateProtocol,
   getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
-  getDoseLogsForProtocol,
+  getDoseLogsForProtocol, getProtocol, getHealthMarkers,
 } from '../db/operations';
 import { getPeptideById, type Peptide } from '../data/peptides';
 import { getCurrentWeekGuide } from '../data/experienceTimelines';
 import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
 import { DoseActionSheet } from '../components/DoseActionSheet';
-import type { UserProtocol, ScheduledDose, DoseLog } from '../db/schema';
+import type { UserProtocol, ScheduledDose, DoseLog, HealthMarker } from '../db/schema';
 
 const CATEGORY_COLORS: Record<string, string> = {
   healing: '#22c55e',
@@ -53,6 +54,8 @@ export function Protocols() {
   const [saving, setSaving] = useState(false);
   const [journeyDoses, setJourneyDoses] = useState<ScheduledDose[]>([]);
   const [journeyLogs, setJourneyLogs] = useState<DoseLog[]>([]);
+  const [journeyMarkers, setJourneyMarkers] = useState<HealthMarker[]>([]);
+  const [metric, setMetric] = useState<'weight' | 'sleepQuality' | 'energy' | 'mood'>('weight');
   const [selectedDose, setSelectedDose] = useState<(ScheduledDose & { peptideName: string; color: string }) | null>(null);
   const [selectedLog, setSelectedLog] = useState<DoseLog | undefined>(undefined);
 
@@ -82,12 +85,18 @@ export function Protocols() {
   async function loadJourney(protocolId: string) {
     setJourneyDoses([]);
     setJourneyLogs([]);
+    setJourneyMarkers([]);
     const [doses, logs] = await Promise.all([
       getScheduledDosesForProtocol(protocolId),
       getDoseLogsForProtocol(protocolId),
     ]);
     setJourneyDoses(doses);
     setJourneyLogs(logs);
+    const proto = await getProtocol(protocolId);
+    if (proto) {
+      const markers = await getHealthMarkers(proto.startDate, format(new Date(), 'yyyy-MM-dd'));
+      setJourneyMarkers(markers);
+    }
   }
 
   function openSheet(proto: UserProtocol) {
@@ -340,6 +349,46 @@ export function Protocols() {
                         <Settings2 className="w-4 h-4" /> Manage
                       </button>
                     </div>
+
+                    {(() => {
+                      const METRICS: { key: typeof metric; label: string; color: string }[] = [
+                        { key: 'weight', label: 'Weight', color: '#00d4aa' },
+                        { key: 'sleepQuality', label: 'Sleep', color: '#6366f1' },
+                        { key: 'energy', label: 'Energy', color: '#f59e0b' },
+                        { key: 'mood', label: 'Mood', color: '#ec4899' },
+                      ];
+                      const active = METRICS.find(m => m.key === metric)!;
+                      const data = journeyMarkers
+                        .filter(m => m[metric] != null)
+                        .map(m => ({ date: format(parseISO(m.date), 'MMM d'), value: m[metric] as number }));
+                      return (
+                        <div className="card-glass p-3">
+                          <div className="flex gap-1.5 mb-2 flex-wrap">
+                            {METRICS.map(m => (
+                              <button key={m.key} onClick={() => setMetric(m.key)}
+                                className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${
+                                  metric === m.key ? 'bg-primary text-bg' : 'bg-card text-text-secondary border border-border'
+                                }`}>
+                                {m.label}
+                              </button>
+                            ))}
+                          </div>
+                          {data.length === 0 ? (
+                            <p className="text-xs text-text-muted text-center py-6">No {active.label.toLowerCase()} logged in this range.</p>
+                          ) : (
+                            <ResponsiveContainer width="100%" height={160}>
+                              <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#1e2a42" />
+                                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} width={28} domain={['auto', 'auto']} />
+                                <Tooltip contentStyle={{ background: '#0f1729', border: '1px solid #1e2a42', borderRadius: 8, fontSize: 12 }} />
+                                <Line type="monotone" dataKey="value" stroke={active.color} strokeWidth={2} dot={{ r: 2 }} name={active.label} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {sorted.length === 0 ? (
                       <p className="text-sm text-text-muted text-center py-8">
