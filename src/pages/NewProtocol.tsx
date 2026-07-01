@@ -102,7 +102,7 @@ export function NewProtocol() {
       variantId: variant?.id,
       durationWeeks: variant ? phasesTotalWeeks(variant.phases) : undefined,
     };
-    setPeptideConfigs(prev => [...prev, config]);
+    setPeptideConfigs(prev => prev.some(c => c.peptideId === peptide.id) ? prev : [...prev, config]);
     setDurationWeeks(peptide.dosing.cycleWeeks);
     if (!protocolName) setProtocolName(peptide.name);
     setStep('configure');
