@@ -214,7 +214,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
                     {showClock ? 'Hide' : 'Use'} clock method
                   </button>
                 )}
-                {showClock && <AbdomenClockDial selected={site} onSelect={setSite} />}
+                {showClock && <AbdomenClockDial selected={site} onSelect={(label) => { userPickedSite.current = true; setSite(label); }} />}
               </div>
 
               <div>
