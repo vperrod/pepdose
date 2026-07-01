@@ -28,6 +28,13 @@ describe('daysSinceByLabel', () => {
     expect(daysSinceByLabel(logs, today)['Left abdomen']).toBe(1);
     expect(daysSinceByLabel(logs, today)['Right thigh (outer)']).toBe(6);
   });
+
+  it('folds clock-method abdomen picks into both abdomen zones', () => {
+    const clockLogs = [{ injectionSite: "Abdomen (3 o'clock)", date: '2026-06-30' }];
+    const ds = daysSinceByLabel(clockLogs, today);
+    expect(ds['Left abdomen']).toBe(1);
+    expect(ds['Right abdomen']).toBe(1);
+  });
 });
 
 describe('mostRestedLabel', () => {

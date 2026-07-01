@@ -224,7 +224,7 @@ export function ReconCalculator() {
       )}
 
       <div className="card-glass p-5 mt-4">
-        <h2 className="font-semibold mb-3 flex items-center gap-2"><Droplets className="w-4 h-4 text-secondary" /> IU ↔ mg</h2>
+        <h2 className="font-semibold mb-3 flex items-center gap-2"><Droplets className="w-4 h-4 text-secondary" /> mg → IU</h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-text-muted mb-1">Dose (mg)</label>

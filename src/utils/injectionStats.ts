@@ -37,7 +37,12 @@ export function daysSinceByLabel(logs: SiteLog[], today: Date): Record<string, n
   for (const l of logs) {
     if (!l.injectionSite) continue;
     const d = differenceInCalendarDays(today, parseISO(l.date));
-    if (out[l.injectionSite] === undefined || d < out[l.injectionSite]) out[l.injectionSite] = d;
+    const keys = l.injectionSite.startsWith('Abdomen (')
+      ? ['Left abdomen', 'Right abdomen']
+      : [l.injectionSite];
+    for (const k of keys) {
+      if (out[k] === undefined || d < out[k]) out[k] = d;
+    }
   }
   return out;
 }
