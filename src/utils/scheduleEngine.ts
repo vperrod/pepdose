@@ -1,6 +1,7 @@
 import { addDays, addWeeks, format, eachDayOfInterval, isBefore, parseISO } from 'date-fns';
 import { type Peptide, type SchedulePhase, getPeptideById } from '../data/peptides';
 import type { ScheduledDose } from '../db/schema';
+import { SITE_LABELS } from '../data/injectionSites';
 
 interface ScheduleConfig {
   peptideId: string;
@@ -31,15 +32,8 @@ function getTimeString(timeOfDay: string): string {
   }
 }
 
-const INJECTION_SITES = [
-  'Left abdomen', 'Right abdomen',
-  'Left thigh (outer)', 'Right thigh (outer)',
-  'Left deltoid', 'Right deltoid',
-  'Left glute', 'Right glute',
-];
-
 function suggestSite(index: number): string {
-  return INJECTION_SITES[index % INJECTION_SITES.length];
+  return SITE_LABELS[index % SITE_LABELS.length];
 }
 
 export function generateSchedule(config: ScheduleConfig): ScheduledDose[] {

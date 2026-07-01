@@ -3,13 +3,7 @@ import { format } from 'date-fns';
 import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil } from 'lucide-react';
 import { logDose, updateScheduledDose, updateDoseLog } from '../db/operations';
 import type { ScheduledDose, DoseLog } from '../db/schema';
-
-const INJECTION_SITES = [
-  'Left abdomen', 'Right abdomen',
-  'Left thigh (outer)', 'Right thigh (outer)',
-  'Left deltoid', 'Right deltoid',
-  'Left glute', 'Right glute',
-];
+import { SITE_LABELS } from '../data/injectionSites';
 
 interface DoseActionSheetProps {
   dose: ScheduledDose & { peptideName: string; color: string };
@@ -25,7 +19,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
   const [mode, setMode] = useState<SheetMode>('log');
   const [actualDose, setActualDose] = useState(parseFloat((log?.dose ?? dose.dose).toPrecision(10)));
   const [actualTime, setActualTime] = useState(log?.time ?? format(new Date(), 'HH:mm'));
-  const [site, setSite] = useState(log?.injectionSite || dose.suggestedSite || INJECTION_SITES[0]);
+  const [site, setSite] = useState(log?.injectionSite || dose.suggestedSite || SITE_LABELS[0]);
   const [notes, setNotes] = useState(log?.notes ?? '');
   const [saving, setSaving] = useState(false);
 
@@ -182,7 +176,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
                   Injection Site
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {INJECTION_SITES.map(s => (
+                  {SITE_LABELS.map(s => (
                     <button
                       key={s}
                       onClick={() => setSite(s)}
