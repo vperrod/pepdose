@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { differenceInWeeks, parseISO, format } from 'date-fns';
-import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle } from 'lucide-react';
+import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle, Sparkles } from 'lucide-react';
 import {
   getProtocols, deleteProtocol, updateProtocol,
   getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
@@ -224,6 +224,9 @@ export function Protocols() {
     <div className="safe-top px-5 pt-4 pb-28">
       <div className="flex items-center justify-between mb-5 stagger-item">
         <h1 className="text-xl font-bold">Protocols</h1>
+        <button onClick={() => navigate('/find')} className="tap-target flex items-center gap-1.5 text-xs font-medium text-secondary bg-card px-3 py-2 rounded-lg">
+          <Sparkles className="w-4 h-4" /> Find
+        </button>
         <button onClick={() => navigate('/protocols/new')} className="tap-target flex items-center gap-2 bg-primary text-bg font-semibold text-sm px-4 py-2.5 rounded-xl">
           <Plus className="w-4 h-4" />
           New

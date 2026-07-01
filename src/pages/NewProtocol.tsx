@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { format, addWeeks } from 'date-fns';
 import {
   ArrowLeft, ArrowRight, Check, Beaker, CalendarDays,
@@ -107,6 +107,18 @@ export function NewProtocol() {
     if (!protocolName) setProtocolName(peptide.name);
     setStep('configure');
   }
+
+  const location = useLocation();
+  useEffect(() => {
+    const ids = (location.state as { preselectPeptideIds?: string[] } | null)?.preselectPeptideIds;
+    if (!ids?.length) return;
+    ids.forEach(id => {
+      const pep = getPeptideById(id);
+      if (pep) selectPeptide(pep);
+    });
+    navigate('.', { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function selectTemplate(template: ProtocolTemplate) {
     const configs: PeptideConfig[] = template.peptides.map(tp => {
