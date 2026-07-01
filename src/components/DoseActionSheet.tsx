@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil } from 'lucide-react';
-import { logDose, updateScheduledDose, updateDoseLog } from '../db/operations';
+import { logDose, updateScheduledDose, updateDoseLog, getAllDoseLogs } from '../db/operations';
 import type { ScheduledDose, DoseLog } from '../db/schema';
-import { SITE_LABELS } from '../data/injectionSites';
+import { SITE_LABELS, INJECTION_SITES } from '../data/injectionSites';
+import { BodyMapSVG } from './BodyMapSVG';
+import { daysSinceByLabel, mostRestedLabel } from '../utils/injectionStats';
 
 interface DoseActionSheetProps {
   dose: ScheduledDose & { peptideName: string; color: string };
@@ -22,9 +24,25 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
   const [site, setSite] = useState(log?.injectionSite || dose.suggestedSite || SITE_LABELS[0]);
   const [notes, setNotes] = useState(log?.notes ?? '');
   const [saving, setSaving] = useState(false);
+  const [daysMap, setDaysMap] = useState<Record<string, number>>({});
 
   const [newDate, setNewDate] = useState(dose.date);
   const [newTime, setNewTime] = useState(dose.time);
+
+  useEffect(() => {
+    getAllDoseLogs().then(logs => {
+      const ds = daysSinceByLabel(logs, new Date());
+      setDaysMap(ds);
+      // only auto-pick a rested zone when logging fresh (no existing site chosen)
+      if (!log?.injectionSite && !dose.suggestedSite) setSite(mostRestedLabel(SITE_LABELS, ds));
+    });
+  }, [log?.injectionSite, dose.suggestedSite]);
+
+  const idByLabel = Object.fromEntries(INJECTION_SITES.map(s => [s.label, s.id]));
+  const labelById = Object.fromEntries(INJECTION_SITES.map(s => [s.id, s.label]));
+  const daysById = Object.fromEntries(
+    Object.entries(daysMap).map(([label, d]) => [idByLabel[label], d]).filter(([id]) => id),
+  );
 
   async function handleLog() {
     setSaving(true);
@@ -175,21 +193,12 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
                   <MapPin className="w-3 h-3 inline mr-1" />
                   Injection Site
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SITE_LABELS.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setSite(s)}
-                      className={`px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                        site === s
-                          ? 'bg-primary/20 text-primary ring-1 ring-primary/40'
-                          : 'bg-card border border-border text-text-secondary hover:bg-card-hover'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
+                <BodyMapSVG
+                  selectedSite={idByLabel[site]}
+                  onSelectSite={(id) => setSite(labelById[id])}
+                  daysSinceMap={daysById}
+                />
+                <p className="text-center text-xs text-text-muted mt-1">{site}</p>
               </div>
 
               <div>

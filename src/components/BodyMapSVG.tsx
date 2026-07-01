@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { INJECTION_SITES, type BodyView } from '../data/injectionSites';
 
-export interface SiteInfo {
-  id: string;
-  label: string;
-  lastUsed?: string;
-}
-
 interface BodyMapProps {
-  sites: SiteInfo[];
   selectedSite?: string;
   onSelectSite: (siteId: string) => void;
   daysSinceMap?: Record<string, number>;
