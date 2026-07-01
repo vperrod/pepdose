@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Droplets, AlertTriangle, Trash2, X } from 'lucide-react';
-import { getVials, saveVial, updateVial } from '../db/operations';
+import { getVials, saveVial, updateVial, getDoseLogsForPeptide } from '../db/operations';
 import { PEPTIDES, getPeptideById } from '../data/peptides';
 import type { Vial } from '../db/schema';
 import { format, differenceInDays, parseISO } from 'date-fns';
+import { predictEmptyDate } from '../utils/vialForecast';
 
 export function VialInventory() {
   const navigate = useNavigate();
   const [vials, setVials] = useState<Vial[]>([]);
+  const [emptyDates, setEmptyDates] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);
   const [peptideId, setPeptideId] = useState('');
   const [amountMg, setAmountMg] = useState('');
@@ -17,7 +19,15 @@ export function VialInventory() {
   const [storageLocation, setStorageLocation] = useState('');
 
   const load = useCallback(async () => {
-    setVials(await getVials());
+    const list = await getVials();
+    setVials(list);
+    const map: Record<string, string> = {};
+    for (const v of list.filter(v => v.status === 'active')) {
+      const plogs = await getDoseLogsForPeptide(v.peptideId);
+      const d = predictEmptyDate(v.dosesRemaining, plogs.map(l => l.date), new Date());
+      if (d) map[v.id] = d;
+    }
+    setEmptyDates(map);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -146,6 +156,10 @@ export function VialInventory() {
                     Reconstituted {format(parseISO(v.reconstitutionDate), 'MMM d')}
                     {v.storageLocation && ` · ${v.storageLocation}`}
                   </p>
+                )}
+
+                {emptyDates[v.id] && (
+                  <p className="text-xs text-text-muted mt-1">Est. empty ~{emptyDates[v.id]}</p>
                 )}
               </div>
             );
