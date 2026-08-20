@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil, Trash2 } from 'lucide-react';
-import { logDose, updateScheduledDose, updateDoseLog, getAllDoseLogs, deleteDoseLog, getProtocol } from '../db/operations';
+import { logDose, updateScheduledDose, updateDoseLog, getDoseLogsSince, deleteDoseLog, getProtocol } from '../db/operations';
 import type { ScheduledDose, DoseLog, ReconMix } from '../db/schema';
 import { clicksForDose, formatClicks, penMlPerClick } from '../utils/penClicks';
 import { SITE_LABELS, INJECTION_SITES } from '../data/injectionSites';
@@ -85,7 +85,7 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
   const [newTime, setNewTime] = useState(dose.time);
 
   useEffect(() => {
-    getAllDoseLogs().then(logs => {
+    getDoseLogsSince(90).then(logs => {
       // Site rest times are per-body: only this dose's owner's injections count,
       // never the other profile's (the view filter can be 'all', so it won't do).
       const ds = daysSinceByLabel(filterByOwner(logs, dose.owner), new Date());

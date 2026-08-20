@@ -5,9 +5,9 @@ import { render, act, cleanup } from '@testing-library/react';
 import { DoseActionSheet } from './DoseActionSheet';
 import type { DoseLog, ScheduledDose } from '../db/schema';
 
-const ops = vi.hoisted(() => ({ getAllDoseLogs: vi.fn(async (): Promise<DoseLog[]> => []) }));
+const ops = vi.hoisted(() => ({ getDoseLogsSince: vi.fn(async (): Promise<DoseLog[]> => []) }));
 vi.mock('../db/operations', () => ({
-  getAllDoseLogs: ops.getAllDoseLogs,
+  getDoseLogsSince: ops.getDoseLogsSince,
   logDose: vi.fn(),
   updateDoseLog: vi.fn(),
   updateScheduledDose: vi.fn(),
@@ -38,16 +38,16 @@ async function renderSheet() {
   return r;
 }
 
-afterEach(() => { cleanup(); ops.getAllDoseLogs.mockReset(); });
+afterEach(() => { cleanup(); ops.getDoseLogsSince.mockReset(); });
 
 it("marks a site as recently used when this dose's owner injected there today", async () => {
-  ops.getAllDoseLogs.mockResolvedValue([{ ...log, id: 'l2', injectionSite: 'Left abdomen' }]);
+  ops.getDoseLogsSince.mockResolvedValue([{ ...log, id: 'l2', injectionSite: 'Left abdomen' }]);
   const { container } = await renderSheet();
   expect(container.querySelectorAll(`circle[fill="${RECENT_RED}"]`).length).toBeGreaterThan(0);
 });
 
 it('ignores the other profile\'s injections when computing site rest times', async () => {
-  ops.getAllDoseLogs.mockResolvedValue([
+  ops.getDoseLogsSince.mockResolvedValue([
     { ...log, id: 'l3', owner: 'Nadia', injectionSite: 'Left abdomen' },
   ]);
   const { container } = await renderSheet();
