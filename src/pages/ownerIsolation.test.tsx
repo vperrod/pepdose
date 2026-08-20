@@ -17,7 +17,8 @@ import { Calendar } from './Calendar';
 import { Protocols } from './Protocols';
 import { HalfLife } from './HalfLife';
 import { InjectionMap } from './InjectionMap';
-import type { UserProtocol, ScheduledDose, HealthMarker, DoseLog } from '../db/schema';
+import { VialInventory } from './VialInventory';
+import type { UserProtocol, ScheduledDose, HealthMarker, DoseLog, Vial } from '../db/schema';
 
 const ops = vi.hoisted(() => ({
   getProtocols: vi.fn(async () => [] as UserProtocol[]),
@@ -28,10 +29,11 @@ const ops = vi.hoisted(() => ({
   getDoseLogsForDate: vi.fn(async () => []),
   getDoseLogsInRange: vi.fn(async () => []),
   getDoseLogsForProtocol: vi.fn(async () => []),
-  getDoseLogsForPeptide: vi.fn(async () => []),
+  getDoseLogsForPeptide: vi.fn(async () => [] as DoseLog[]),
   getHealthMarkers: vi.fn(async () => [] as HealthMarker[]),
   getAllDoseLogs: vi.fn(async () => []),
   getDoseLogsSince: vi.fn(async () => [] as DoseLog[]),
+  getVials: vi.fn(async () => [] as Vial[]),
   updateProtocol: vi.fn(async () => {}),
   deleteProtocol: vi.fn(async () => {}),
   deleteUpcomingDosesFrom: vi.fn(async () => {}),
@@ -75,6 +77,16 @@ const doseLog = (owner: 'Victor' | 'Nadia'): DoseLog => ({
   id: `l-${owner}`, protocolId: `p-${owner}`, peptideId: 'bpc-157', date: TODAY, time: '08:00',
   dose: 250, unit: 'mcg', injectionSite: 'Left abdomen', owner, createdAt: `${TODAY}T08:00:00.000Z`,
 } as DoseLog);
+
+const doseLogOn = (owner: 'Victor' | 'Nadia', date: string): DoseLog => ({
+  id: `l-${owner}-${date}`, protocolId: `p-${owner}`, peptideId: 'bpc-157', date, time: '08:00',
+  dose: 250, unit: 'mcg', injectionSite: 'Left abdomen', owner, createdAt: `${date}T08:00:00.000Z`,
+} as DoseLog);
+
+const vial = (owner: 'Victor' | 'Nadia'): Vial => ({
+  id: `v-${owner}`, owner, peptideId: 'bpc-157', amountMg: 5, bacWaterMl: 2,
+  dosesRemaining: 4, totalDoses: 10, status: 'active', createdAt: `${TODAY}T00:00:00.000Z`,
+} as Vial);
 
 async function renderAsVictor(ui: React.ReactElement) {
   let result!: ReturnType<typeof render>;
@@ -161,5 +173,19 @@ describe('viewing as Victor never shows Nadia data', () => {
     ops.getDoseLogsSince.mockResolvedValue([doseLog('Victor')]);
     await renderAsVictor(<InjectionMap />);
     expect(screen.getByText('Left abdomen')).toBeTruthy();
+  });
+
+  it('VialInventory: empty-date forecast ignores the other profile\'s dose history', async () => {
+    ops.getVials.mockResolvedValue([vial('Victor')]);
+    ops.getDoseLogsForPeptide.mockResolvedValue([doseLogOn('Nadia', '2026-01-01'), doseLogOn('Nadia', '2026-01-04')]);
+    await renderAsVictor(<VialInventory />);
+    expect(screen.queryByText(/Est\. empty/)).toBeNull();
+  });
+
+  it('VialInventory: empty-date forecast still uses the active profile\'s dose history', async () => {
+    ops.getVials.mockResolvedValue([vial('Victor')]);
+    ops.getDoseLogsForPeptide.mockResolvedValue([doseLogOn('Victor', '2026-01-01'), doseLogOn('Victor', '2026-01-04')]);
+    await renderAsVictor(<VialInventory />);
+    expect(screen.getByText(/Est\. empty/)).toBeTruthy();
   });
 });
