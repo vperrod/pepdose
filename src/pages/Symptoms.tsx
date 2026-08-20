@@ -19,13 +19,22 @@ export function Symptoms() {
   const applyOwnerFilter = useOwnerFilter();
 
   useEffect(() => {
-    Promise.all([
-      getAllDoseLogs(),
-      getScheduledDosesInRange('2000-01-01', '2999-12-31'),
-    ]).then(([l, s]) => {
+    getAllDoseLogs().then((l) => {
       setLogs(l);
-      setScheduled(s);
-      setLoading(false);
+      // Step-up markers only ever land on a date this chart already has a
+      // logged dose for (see stepUps below) — so there's no need to pull
+      // every scheduled dose ever created, just the ones inside the actual
+      // logged date span.
+      if (l.length === 0) {
+        setScheduled([]);
+        setLoading(false);
+        return;
+      }
+      const dates = l.map((log) => log.date).sort();
+      getScheduledDosesInRange(dates[0], dates[dates.length - 1]).then((s) => {
+        setScheduled(s);
+        setLoading(false);
+      });
     });
   }, []);
 
