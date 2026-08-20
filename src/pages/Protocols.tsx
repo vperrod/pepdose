@@ -73,6 +73,7 @@ export function Protocols() {
   const [protocols, setProtocols] = useState<UserProtocol[]>([]);
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
   const [removingDup, setRemovingDup] = useState<string | null>(null);
+  const [dupError, setDupError] = useState<string | null>(null);
   const [confirmDupId, setConfirmDupId] = useState<string | null>(null);
   const applyOwnerFilter = useOwnerFilter();
   const [loading, setLoading] = useState(true);
@@ -80,6 +81,7 @@ export function Protocols() {
   const [sheetMode, setSheetMode] = useState<SheetMode>('actions');
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [journeyDoses, setJourneyDoses] = useState<ScheduledDose[]>([]);
   const [journeyLogs, setJourneyLogs] = useState<DoseLog[]>([]);
   const [journeyAdhoc, setJourneyAdhoc] = useState<DoseLog[]>([]);
@@ -122,9 +124,15 @@ export function Protocols() {
 
   async function removeDuplicate(id: string) {
     setRemovingDup(id);
-    await deleteProtocol(id);
-    setRemovingDup(null);
-    await loadProtocols();
+    setDupError(null);
+    try {
+      await deleteProtocol(id);
+      await loadProtocols();
+    } catch (e) {
+      setDupError(e instanceof Error ? e.message : 'Could not delete — please try again.');
+    } finally {
+      setRemovingDup(null);
+    }
   }
 
   async function loadJourney(protocolId: string) {
@@ -158,6 +166,7 @@ export function Protocols() {
     setActiveProto(proto);
     setSheetMode('journey');
     setOpenWeeks(null);
+    setError(null);
     loadJourney(proto.id);
     setEditDoses(proto.doses.map(d => {
       const pep = getPeptideById(d.peptideId);
@@ -186,6 +195,7 @@ export function Protocols() {
   function closeSheet() {
     setActiveProto(null);
     setSheetMode('actions');
+    setError(null);
   }
 
   function openDoseEditor(dose: ScheduledDose, log?: DoseLog) {
@@ -204,76 +214,98 @@ export function Protocols() {
   async function handleDelete() {
     if (!activeProto) return;
     setDeleting(true);
-    await deleteProtocol(activeProto.id);
-    setDeleting(false);
-    closeSheet();
-    await loadProtocols();
+    setError(null);
+    try {
+      await deleteProtocol(activeProto.id);
+      closeSheet();
+      await loadProtocols();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not delete — please try again.');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleTogglePause() {
     if (!activeProto) return;
     const newStatus = activeProto.status === 'paused' ? 'active' : 'paused';
-    await updateProtocol(activeProto.id, { status: newStatus });
-    closeSheet();
-    await loadProtocols();
+    setError(null);
+    try {
+      await updateProtocol(activeProto.id, { status: newStatus });
+      closeSheet();
+      await loadProtocols();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update protocol — please try again.');
+    }
   }
 
   async function handleFinish() {
     if (!activeProto) return;
-    await updateProtocol(activeProto.id, { status: 'completed' });
-    closeSheet();
-    await loadProtocols();
+    setError(null);
+    try {
+      await updateProtocol(activeProto.id, { status: 'completed' });
+      closeSheet();
+      await loadProtocols();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update protocol — please try again.');
+    }
   }
 
   async function handleSaveEdit() {
     if (!activeProto) return;
     setSaving(true);
+    setError(null);
 
-    const protoDuration = Math.max(...editDoses.map(d => d.durationWeeks ?? activeProto.durationWeeks));
+    try {
+      const protoDuration = Math.max(...editDoses.map(d => d.durationWeeks ?? activeProto.durationWeeks));
 
-    // Regenerate the full schedule from the (possibly new) start date so titration
-    // week-alignment is preserved, then keep only the upcoming portion.
-    const fullDoses = editDoses.flatMap(d =>
-      generateSchedule({
-        peptideId: d.peptideId,
-        dose: d.dose,
-        unit: d.unit as 'mcg' | 'mg' | 'IU',
-        frequency: d.frequency,
-        customFrequencyDays: d.customFrequencyDays,
-        daysOfWeek: d.daysOfWeek,
-        timesPerDay: d.timesPerDay,
-        timeOfDay: d.timeOfDay,
+      // Regenerate the full schedule from the (possibly new) start date so titration
+      // week-alignment is preserved, then keep only the upcoming portion.
+      const fullDoses = editDoses.flatMap(d =>
+        generateSchedule({
+          peptideId: d.peptideId,
+          dose: d.dose,
+          unit: d.unit as 'mcg' | 'mg' | 'IU',
+          frequency: d.frequency,
+          customFrequencyDays: d.customFrequencyDays,
+          daysOfWeek: d.daysOfWeek,
+          timesPerDay: d.timesPerDay,
+          timeOfDay: d.timeOfDay,
+          startDate: editStartDate,
+          durationWeeks: d.durationWeeks ?? activeProto.durationWeeks,
+          schedulePhases: d.schedulePhases,
+          protocolBreaks: activeProto.breaks,
+          protocolId: activeProto.id,
+        })
+      );
+
+      // Preserve any dose that already happened (logged/skipped/missed) — never rewrite history.
+      const existing = await getScheduledDosesForProtocol(activeProto.id);
+      const preserved = new Set(
+        existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}`)
+      );
+
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}`));
+
+      await deleteUpcomingDosesFrom(activeProto.id, today);
+      await saveScheduledDoses(regen, activeProto.owner);
+
+      await updateProtocol(activeProto.id, {
+        name: editName,
         startDate: editStartDate,
-        durationWeeks: d.durationWeeks ?? activeProto.durationWeeks,
-        schedulePhases: d.schedulePhases,
-        protocolBreaks: activeProto.breaks,
-        protocolId: activeProto.id,
-      })
-    );
+        durationWeeks: protoDuration,
+        doses: editDoses,
+        titrationAlerts: editTitrationAlerts,
+      });
 
-    // Preserve any dose that already happened (logged/skipped/missed) — never rewrite history.
-    const existing = await getScheduledDosesForProtocol(activeProto.id);
-    const preserved = new Set(
-      existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}`)
-    );
-
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}`));
-
-    await deleteUpcomingDosesFrom(activeProto.id, today);
-    await saveScheduledDoses(regen, activeProto.owner);
-
-    await updateProtocol(activeProto.id, {
-      name: editName,
-      startDate: editStartDate,
-      durationWeeks: protoDuration,
-      doses: editDoses,
-      titrationAlerts: editTitrationAlerts,
-    });
-
-    setSaving(false);
-    closeSheet();
-    await loadProtocols();
+      closeSheet();
+      await loadProtocols();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save changes — please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function updateEditDose(index: number, updates: Partial<UserProtocol['doses'][0]>) {
@@ -325,6 +357,12 @@ export function Protocols() {
           New
         </button>
       </div>
+
+      {dupError && (
+        <div role="alert" className="card-glass p-3 mb-3 border border-danger/40 text-sm text-danger stagger-item">
+          {dupError}
+        </div>
+      )}
 
       {duplicates
         .map(g => ({ ...g, protocols: applyOwnerFilter(g.protocols) }))
@@ -475,6 +513,12 @@ export function Protocols() {
                   <X className="w-5 h-5 text-text-muted" />
                 </button>
               </div>
+
+              {error && (
+                <div role="alert" className="mx-4 mt-3 card-glass p-3 border border-danger/40 text-sm text-danger">
+                  {error}
+                </div>
+              )}
 
               {sheetMode === 'journey' && (() => {
                 const today = format(new Date(), 'yyyy-MM-dd');

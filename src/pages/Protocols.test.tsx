@@ -116,6 +116,17 @@ describe('Protocols lifecycle', () => {
     });
     expect(ops.deleteProtocol).toHaveBeenCalledWith('p1');
   });
+
+  it('a failed delete shows an error and re-enables the button instead of hanging', async () => {
+    ops.deleteProtocol.mockRejectedValueOnce(new Error('boom'));
+    await openActions();
+    await click('Delete Protocol');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Delete Protocol' }));
+    });
+    expect(screen.getByRole('alert').textContent).toContain('boom');
+    expect(screen.getByRole('button', { name: 'Delete Protocol' }).hasAttribute('disabled')).toBe(false);
+  });
 });
 
 describe('Protocols schedule regeneration', () => {
