@@ -8,7 +8,7 @@ import type { DoseLog, ScheduledDose } from '../db/schema';
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
 
 const ops = vi.hoisted(() => ({
-  getAllDoseLogs: vi.fn(async () => [] as DoseLog[]),
+  getDoseLogsSince: vi.fn(async () => [] as DoseLog[]),
   getScheduledDosesInRange: vi.fn(async () => [] as ScheduledDose[]),
 }));
 vi.mock('../db/operations', () => ops);
@@ -31,7 +31,7 @@ beforeEach(() => { Object.values(ops).forEach(fn => fn.mockClear()); });
 afterEach(cleanup);
 
 it("bounds the scheduled-dose fetch to the logged data's own date span, not an all-time range", async () => {
-  ops.getAllDoseLogs.mockResolvedValue([
+  ops.getDoseLogsSince.mockResolvedValue([
     log({ id: 'l1', date: '2026-01-10' }),
     log({ id: 'l2', date: '2026-03-20' }),
   ]);
@@ -41,8 +41,14 @@ it("bounds the scheduled-dose fetch to the logged data's own date span, not an a
 });
 
 it('skips the scheduled-dose fetch entirely when there are no dose logs yet', async () => {
-  ops.getAllDoseLogs.mockResolvedValue([]);
+  ops.getDoseLogsSince.mockResolvedValue([]);
   await renderSymptoms();
 
   expect(ops.getScheduledDosesInRange).not.toHaveBeenCalled();
+});
+
+it('windows the trends chart to the last 12 months of dose logs', async () => {
+  await renderSymptoms();
+
+  expect(ops.getDoseLogsSince).toHaveBeenCalledWith(365);
 });

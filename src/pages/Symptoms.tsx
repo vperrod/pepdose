@@ -4,7 +4,7 @@ import { ArrowLeft, Activity } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
 } from 'recharts';
-import { getAllDoseLogs, getScheduledDosesInRange } from '../db/operations';
+import { getDoseLogsSince, getScheduledDosesInRange } from '../db/operations';
 import type { DoseLog, ScheduledDose } from '../db/schema';
 import { symptomTrends } from '../utils/symptomTrends';
 import { useOwnerFilter } from '../context/ViewFilterContext';
@@ -19,7 +19,7 @@ export function Symptoms() {
   const applyOwnerFilter = useOwnerFilter();
 
   useEffect(() => {
-    getAllDoseLogs().then((l) => {
+    getDoseLogsSince(365).then((l) => {
       setLogs(l);
       // Step-up markers only ever land on a date this chart already has a
       // logged dose for (see stepUps below) — so there's no need to pull
