@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Calendar as CalIcon, List } from 'lucide-react';
-import { getAllDoseLogs } from '../db/operations';
+import { getDoseLogsSince } from '../db/operations';
 import { getPeptideById } from '../data/peptides';
 import type { DoseLog } from '../db/schema';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, subMonths, addMonths } from 'date-fns';
@@ -17,7 +17,7 @@ export function DoseHistory() {
   const [filterPeptide, setFilterPeptide] = useState('');
 
   const load = useCallback(async () => {
-    setLogs(await getAllDoseLogs());
+    setLogs(await getDoseLogsSince(90));
   }, []);
 
   useEffect(() => { load(); }, [load]);
