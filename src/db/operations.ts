@@ -78,11 +78,15 @@ export async function saveScheduledDoses(doses: Omit<ScheduledDose, 'owner'>[], 
 }
 
 /** One-shot cleanup for schedules the old sync bug duplicated. Returns how many
- *  spare rows went; deletes go through the ledger so the cloud drops them too. */
+ *  spare rows went; deletes go through the ledger so the cloud drops them too.
+ *  Bounded to the last 90 days (+ all upcoming, via the open-ended lowerBound) —
+ *  duplicates only ever form around a protocol's active window, and this runs
+ *  on every app boot, so scanning the full history every time doesn't pay off. */
 export async function repairDuplicateScheduledDoses(): Promise<number> {
   const db = await getDB();
+  const startDate = format(new Date(Date.now() - 90 * 86_400_000), 'yyyy-MM-dd');
   const [doses, protocols] = await Promise.all([
-    db.getAll('scheduledDoses'),
+    db.getAllFromIndex('scheduledDoses', 'by-date', IDBKeyRange.lowerBound(startDate)),
     db.getAll('protocols'),
   ]);
   const spare = planDoseDedupe(doses, protocols);
