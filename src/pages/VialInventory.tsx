@@ -6,10 +6,13 @@ import { PEPTIDES, getPeptideById } from '../data/peptides';
 import type { Vial } from '../db/schema';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { predictEmptyDate } from '../utils/vialForecast';
+import { computeRecon, doseToMg } from '../utils/reconMath';
 import { UserPicker } from '../components/UserPicker';
 import { UserBadge } from '../components/UserBadge';
 import { useOwnerFilter } from '../context/ViewFilterContext';
 import { getLastOwner, setLastOwner, type UserName } from '../data/users';
+
+const U100_UNITS_PER_ML = 100;
 
 export function VialInventory() {
   const navigate = useNavigate();
@@ -35,20 +38,28 @@ export function VialInventory() {
     setPerDose(String(p.dosing.standard));
     setPerDoseUnit(p.dosing.unit);
     // Prefill total doses from the vial's own reconstitution defaults.
-    const stdMg = p.dosing.unit === 'mcg' ? p.dosing.standard / 1000 : p.dosing.standard;
-    const doses = p.reconstitution.typicalVialMg > 0 && stdMg > 0
-      ? Math.floor(p.reconstitution.typicalVialMg / stdMg)
-      : 0;
+    const stdMg = doseToMg(p.dosing.standard, p.dosing.unit);
+    const doses = computeRecon({
+      mode: 'forward', vialMg: p.reconstitution.typicalVialMg, doseMg: stdMg,
+      bacWaterMl: 1, targetUnits: 0, unitsPerMl: U100_UNITS_PER_ML,
+    }).dosesPerVial;
     setDosesRemaining(doses > 0 ? String(doses) : '');
   }
 
   // Reconstitution math for the add-vial form: derive doses-per-vial + concentration.
   const vialMgNum = parseFloat(amountMg);
   const waterNum = parseFloat(bacWater);
-  const perDoseMg = parseFloat(perDose) > 0 ? (perDoseUnit === 'mcg' ? parseFloat(perDose) / 1000 : parseFloat(perDose)) : 0;
-  const computedDoses = vialMgNum > 0 && perDoseMg > 0 ? Math.floor(vialMgNum / perDoseMg) : 0;
-  const concentration = vialMgNum > 0 && waterNum > 0 ? vialMgNum / waterNum : 0;
-  const unitsPerDose = concentration > 0 && perDoseMg > 0 ? (perDoseMg / concentration) * 100 : 0;
+  const perDoseMg = doseToMg(parseFloat(perDose), perDoseUnit);
+  // doses/vial doesn't depend on the water volume, but computeRecon needs a valid
+  // forward mix to report anything - so substitute 1ml when the field is still empty
+  // and suppress the water-derived readouts instead.
+  const recon = computeRecon({
+    mode: 'forward', vialMg: vialMgNum, doseMg: perDoseMg,
+    bacWaterMl: waterNum > 0 ? waterNum : 1, targetUnits: 0, unitsPerMl: U100_UNITS_PER_ML,
+  });
+  const computedDoses = recon.dosesPerVial;
+  const concentration = waterNum > 0 ? recon.concentration : 0;
+  const unitsPerDose = waterNum > 0 ? recon.units : 0;
 
   const load = useCallback(async () => {
     const list = await getVials();
