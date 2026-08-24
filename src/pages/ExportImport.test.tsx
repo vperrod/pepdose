@@ -77,6 +77,14 @@ describe('ExportImport clear-all confirm flow', () => {
     expect(ops.clearAllData).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/All data cleared/)).toBeTruthy();
   });
+
+  it('reports an error instead of claiming success when the wipe throws', async () => {
+    ops.clearAllData.mockRejectedValueOnce(new Error('db locked'));
+    render(<ExportImport />);
+    fireEvent.click(screen.getByText('Clear All Data'));
+    await act(async () => { fireEvent.click(screen.getByText('Delete Everything')); });
+    expect(screen.getByText(/Could not clear data/)).toBeTruthy();
+  });
 });
 
 describe('ExportImport import flow', () => {

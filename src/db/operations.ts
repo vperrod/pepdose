@@ -501,8 +501,10 @@ export async function clearAllData(): Promise<void> {
   const db = await getDB();
   // NOTE: deliberately does NOT write deletion-ledger entries — "clear all data"
   // means wipe this device, not delete the cloud copy; sync re-pulls afterwards.
+  // One transaction across every store: a per-store loop can abort partway
+  // (e.g. a concurrent tab holding a lock) and leave the device half-wiped.
   const stores = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'editHistory', 'deletions'] as const;
-  for (const storeName of stores) {
-    await db.clear(storeName);
-  }
+  const tx = db.transaction(stores, 'readwrite');
+  await Promise.all(stores.map((storeName) => tx.objectStore(storeName).clear()));
+  await tx.done;
 }

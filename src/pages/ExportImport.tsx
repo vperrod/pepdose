@@ -50,10 +50,15 @@ export function ExportImport() {
   };
 
   const handleClear = async () => {
-    await clearAllData();
-    setShowClearConfirm(false);
-    setStatus({ type: 'success', msg: 'All data cleared. Reloading…' });
-    setTimeout(() => window.location.reload(), 800);
+    try {
+      await clearAllData();
+      setStatus({ type: 'success', msg: 'All data cleared. Reloading…' });
+      setTimeout(() => window.location.reload(), 800);
+    } catch {
+      setStatus({ type: 'error', msg: 'Could not clear data — nothing was deleted' });
+    } finally {
+      setShowClearConfirm(false);
+    }
   };
 
   return (
