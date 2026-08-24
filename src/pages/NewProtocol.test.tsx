@@ -130,4 +130,17 @@ describe('NewProtocol', () => {
     expect(dose.daysOfWeek).toEqual([1]);
     expect(dose.customSchedule).toBe(true);
   });
+
+  it('re-enables Start Protocol when the write throws', async () => {
+    ops.saveScheduledDoses.mockRejectedValueOnce(new Error('QuotaExceededError'));
+    await createWith();
+    const button = screen.getByRole('button', { name: /Start Protocol/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+  });
+
+  it('shows the failure reason when the write throws', async () => {
+    ops.saveScheduledDoses.mockRejectedValueOnce(new Error('QuotaExceededError'));
+    await createWith();
+    expect(screen.getByRole('alert').textContent).toContain('QuotaExceededError');
+  });
 });

@@ -97,6 +97,7 @@ export function NewProtocol() {
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [durationWeeks, setDurationWeeks] = useState(4);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedTemplate, setSelectedTemplate] = useState<ProtocolTemplate | null>(null);
@@ -220,55 +221,61 @@ export function NewProtocol() {
     // DecimalInput's min only blocks negatives, not 0, and 0-dose doses are junk.
     if (!startDate || peptideConfigs.some(c => !(c.dose > 0))) return;
     setSaving(true);
+    setSaveError(null);
 
-    const protocol = await saveProtocol({
-      name: protocolName || peptideConfigs.map(c => getPeptideById(c.peptideId)?.name).join(' + '),
-      peptideIds: peptideConfigs.map(c => c.peptideId),
-      doses: peptideConfigs.map(c => ({
-        peptideId: c.peptideId,
-        dose: c.dose,
-        unit: c.unit,
-        frequency: c.frequency,
-        customFrequencyDays: c.customFrequencyDays,
-        daysOfWeek: c.daysOfWeek,
-        timesPerDay: c.timesPerDay,
-        timeOfDay: c.timeOfDay,
-        durationWeeks: c.durationWeeks ?? durationWeeks,
-        schedulePhases: c.schedulePhases,
-        variantId: c.variantId,
-        customSchedule: c.customSchedule,
-        recon: c.recon,
-        penColor: c.penColor,
-      })),
-      startDate,
-      durationWeeks,
-      status: 'active',
-      owner,
-      breaks: selectedTemplate?.breaks,
-    });
-
-    const allDoses = peptideConfigs.flatMap(config =>
-      generateSchedule({
-        peptideId: config.peptideId,
-        dose: config.dose,
-        unit: config.unit,
-        frequency: config.frequency,
-        customFrequencyDays: config.customFrequencyDays,
-        daysOfWeek: config.daysOfWeek,
-        timesPerDay: config.timesPerDay,
-        timeOfDay: config.timeOfDay,
+    try {
+      const protocol = await saveProtocol({
+        name: protocolName || peptideConfigs.map(c => getPeptideById(c.peptideId)?.name).join(' + '),
+        peptideIds: peptideConfigs.map(c => c.peptideId),
+        doses: peptideConfigs.map(c => ({
+          peptideId: c.peptideId,
+          dose: c.dose,
+          unit: c.unit,
+          frequency: c.frequency,
+          customFrequencyDays: c.customFrequencyDays,
+          daysOfWeek: c.daysOfWeek,
+          timesPerDay: c.timesPerDay,
+          timeOfDay: c.timeOfDay,
+          durationWeeks: c.durationWeeks ?? durationWeeks,
+          schedulePhases: c.schedulePhases,
+          variantId: c.variantId,
+          customSchedule: c.customSchedule,
+          recon: c.recon,
+          penColor: c.penColor,
+        })),
         startDate,
-        durationWeeks: config.durationWeeks ?? durationWeeks,
-        schedulePhases: config.schedulePhases,
-        protocolBreaks: selectedTemplate?.breaks,
-        protocolId: protocol.id,
-      })
-    );
+        durationWeeks,
+        status: 'active',
+        owner,
+        breaks: selectedTemplate?.breaks,
+      });
 
-    await saveScheduledDoses(allDoses, owner);
-    setLastOwner(owner);
-    setSaving(false);
-    navigate('/');
+      const allDoses = peptideConfigs.flatMap(config =>
+        generateSchedule({
+          peptideId: config.peptideId,
+          dose: config.dose,
+          unit: config.unit,
+          frequency: config.frequency,
+          customFrequencyDays: config.customFrequencyDays,
+          daysOfWeek: config.daysOfWeek,
+          timesPerDay: config.timesPerDay,
+          timeOfDay: config.timeOfDay,
+          startDate,
+          durationWeeks: config.durationWeeks ?? durationWeeks,
+          schedulePhases: config.schedulePhases,
+          protocolBreaks: selectedTemplate?.breaks,
+          protocolId: protocol.id,
+        })
+      );
+
+      await saveScheduledDoses(allDoses, owner);
+      setLastOwner(owner);
+      navigate('/');
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Could not save — please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const totalDoses = useMemo(() => {
@@ -760,6 +767,12 @@ export function NewProtocol() {
               </div>
             </div>
           </div>
+
+          {saveError && (
+            <div role="alert" className="mb-3 card-glass p-3 border border-danger/40 text-sm text-danger">
+              {saveError}
+            </div>
+          )}
 
           <button
             onClick={createProtocol}
