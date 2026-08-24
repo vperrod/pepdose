@@ -1,5 +1,6 @@
 import { getDB, type UserProtocol, type ScheduledDose, type DoseLog, type Vial, type HealthMarker, type EditHistory, type DeletionRecord } from './schema';
 import type { UserName } from '../data/users';
+import { USERS } from '../data/users';
 import { format } from 'date-fns';
 import { planDoseDedupe } from '../utils/dedupeDoses';
 
@@ -444,6 +445,9 @@ export function validateImport(data: unknown): asserts data is Record<string, un
         }
       }
       assertNumericFields(rec, IMPORT_NUMERIC[storeName], storeName);
+      if (rec.owner !== undefined && !USERS.includes(rec.owner as UserName)) {
+        throw new Error(`${storeName} entry has unknown owner: ${rec.owner}`);
+      }
       // Nested numeric fields the top-level table can't reach: a protocol's
       // per-peptide dose configs (feed pen clicks / schedule math) and a dose
       // log's symptom severities (feed the symptom-trend charts).
