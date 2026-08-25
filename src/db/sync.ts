@@ -127,6 +127,24 @@ let running = false;
 // tick. Remember exactly one follow-up pass; concurrent triggers coalesce.
 let queuedFollowUp = false;
 
+// Resolves once no pass (nor its queued follow-up) is in flight. A caller that
+// wipes local data has to await this: a background pass that started before the
+// wipe still writes pulled rows afterwards, silently resurrecting the data.
+let idlePromise: Promise<void> | null = null;
+let resolveIdle: (() => void) | null = null;
+
+let suspended = false;
+
+/** Block new sync passes and wait for any in-flight one to finish writing.
+ *  Returns the resume function. Used by clearAllData(): awaiting the current
+ *  pass is not enough on its own — a background trigger firing during the wipe
+ *  would pull the same rows straight back. */
+export async function suspendSync(): Promise<() => void> {
+  suspended = true;
+  while (idlePromise) await idlePromise;
+  return () => { suspended = false; };
+}
+
 // Delta cursor: after a successful pass, later ticks fetch only remote rows with
 // updated_at newer than the last sync (minus a clock-skew margin, since
 // updated_at is stamped by whichever client pushed the row) and only consider
@@ -146,13 +164,14 @@ export function resetSyncCursor() {
 /** Merge local <-> cloud. Returns counts (plus per-kind errors, if any), or
  *  null if cloud disabled / not signed in. */
 export async function syncNow(): Promise<{ pushed: number; pulled: number; errors: string[] } | null> {
-  if (!cloudEnabled || !supabase) return null;
+  if (!cloudEnabled || !supabase || suspended) return null;
   if (running) {
     queuedFollowUp = true;
     return null;
   }
 
   running = true; // before the first await, so overlapping triggers queue instead of double-running
+  idlePromise = new Promise<void>((resolve) => { resolveIdle = resolve; });
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     const session = sessionData.session;
@@ -320,9 +339,16 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
     return { pushed, pulled, errors };
   } finally {
     running = false;
+    const done = resolveIdle;
     if (queuedFollowUp) {
       queuedFollowUp = false;
+      // Installs its own idlePromise synchronously, before `done()` releases the
+      // waiters, so waitForSyncIdle() spans the follow-up pass too.
       void syncNow();
+    } else {
+      idlePromise = null;
+      resolveIdle = null;
     }
+    done?.();
   }
 }

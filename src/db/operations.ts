@@ -3,6 +3,7 @@ import type { UserName } from '../data/users';
 import { USERS } from '../data/users';
 import { format } from 'date-fns';
 import { planDoseDedupe } from '../utils/dedupeDoses';
+import { suspendSync } from './sync';
 
 function genId(): string {
   return crypto.randomUUID();
@@ -502,13 +503,20 @@ export async function importData(jsonString: string, owner: UserName): Promise<v
 }
 
 export async function clearAllData(): Promise<void> {
-  const db = await getDB();
-  // NOTE: deliberately does NOT write deletion-ledger entries — "clear all data"
-  // means wipe this device, not delete the cloud copy; sync re-pulls afterwards.
-  // One transaction across every store: a per-store loop can abort partway
-  // (e.g. a concurrent tab holding a lock) and leave the device half-wiped.
-  const stores = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'editHistory', 'deletions'] as const;
-  const tx = db.transaction(stores, 'readwrite');
-  await Promise.all(stores.map((storeName) => tx.objectStore(storeName).clear()));
-  await tx.done;
+  // A background sync pass writing pulled rows after the wipe would silently
+  // repopulate the device, so hold it off for the duration of the clear.
+  const resumeSync = await suspendSync();
+  try {
+    const db = await getDB();
+    // NOTE: deliberately does NOT write deletion-ledger entries — "clear all data"
+    // means wipe this device, not delete the cloud copy; sync re-pulls afterwards.
+    // One transaction across every store: a per-store loop can abort partway
+    // (e.g. a concurrent tab holding a lock) and leave the device half-wiped.
+    const stores = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'editHistory', 'deletions'] as const;
+    const tx = db.transaction(stores, 'readwrite');
+    await Promise.all(stores.map((storeName) => tx.objectStore(storeName).clear()));
+    await tx.done;
+  } finally {
+    resumeSync();
+  }
 }

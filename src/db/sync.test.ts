@@ -650,6 +650,32 @@ describe('syncNow', () => {
     expect(cloud.queriedSince.length).toBe(6);
   });
 
+  it('a wipe landing mid-sync is not repopulated by the in-flight pass', async () => {
+    const ts = new Date(Date.now() - 60_000).toISOString();
+    cloud.remote = [
+      {
+        kind: 'protocols',
+        id: 'p1',
+        data: { id: 'p1', updatedAt: ts },
+        updated_at: ts,
+        deleted: false,
+      },
+    ];
+    await syncNow();
+    const newer = new Date(Date.now() - 1_000).toISOString();
+    cloud.remote[0].data.updatedAt = newer;
+    cloud.remote[0].updated_at = newer;
+    cloud.delayKinds = new Set(['protocols']);
+
+    const background = syncNow();
+    await clearAllData();
+    await background;
+    cloud.delayKinds = new Set();
+
+    const db = await getDB();
+    expect(await db.get('protocols', 'p1')).toBeUndefined();
+  });
+
   it('parallelizes all 6 kinds within a single pass', async () => {
     beforeEach(async () => {
       cloud.delayKinds = new Set(['protocols', 'doseLogs', 'vials']);
