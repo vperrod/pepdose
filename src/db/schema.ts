@@ -125,18 +125,8 @@ export interface HealthMarker {
  *  are pruned once the tombstone lands in the cloud. */
 export interface DeletionRecord {
   id: string; // the deleted record's id
-  kind: 'protocols' | 'scheduledDoses' | 'doseLogs' | 'vials' | 'healthMarkers' | 'editHistory';
+  kind: 'protocols' | 'scheduledDoses' | 'doseLogs' | 'vials' | 'healthMarkers';
   deletedAt: string; // ISO timestamp — LWW against a later remote re-edit
-}
-
-export interface EditHistory {
-  id: string;
-  protocolId: string;
-  field: string;
-  oldValue: string;
-  newValue: string;
-  affectedDoses: number;
-  date: string;
 }
 
 interface PepDoseDB extends DBSchema {
@@ -180,11 +170,6 @@ interface PepDoseDB extends DBSchema {
     value: HealthMarker;
     indexes: { 'by-date': string; 'by-updatedAt': string };
   };
-  editHistory: {
-    key: string;
-    value: EditHistory;
-    indexes: { 'by-protocol': string; 'by-updatedAt': string };
-  };
   deletions: {
     key: string;
     value: DeletionRecord;
@@ -219,9 +204,6 @@ export async function getDB(): Promise<IDBPDatabase<PepDoseDB>> {
 
         const healthStore = db.createObjectStore('healthMarkers', { keyPath: 'id' });
         healthStore.createIndex('by-date', 'date');
-
-        const editStore = db.createObjectStore('editHistory', { keyPath: 'id' });
-        editStore.createIndex('by-protocol', 'protocolId');
       }
 
       if (oldVersion < 2) {
@@ -248,7 +230,7 @@ export async function getDB(): Promise<IDBPDatabase<PepDoseDB>> {
         // full-table scan every 30s (see db/sync.ts syncNow). Rows without an
         // `updatedAt` (pre-existing legacy rows) simply aren't indexed here —
         // they're already only reachable via the periodic full sync.
-        const stores = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'editHistory'] as const;
+        const stores = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers'] as const;
         for (const name of stores) {
           tx.objectStore(name).createIndex('by-updatedAt', 'updatedAt');
         }

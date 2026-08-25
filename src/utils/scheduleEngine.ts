@@ -324,19 +324,6 @@ export function summarizePhases(phases: SchedulePhase[]): string {
   return `${parts.join(' → ')} → off`;
 }
 
-export function updateFutureDoses(
-  existingDoses: ScheduledDose[],
-  fromDate: string,
-  updates: Partial<Pick<ScheduledDose, 'dose' | 'unit' | 'time'>>,
-): ScheduledDose[] {
-  return existingDoses.map(d => {
-    if (d.status === 'upcoming' && d.date >= fromDate) {
-      return { ...d, ...updates, editNote: `Modified on ${format(new Date(), 'yyyy-MM-dd')}` };
-    }
-    return d;
-  });
-}
-
 export function extendSchedule(
   existingDoses: ScheduledDose[],
   additionalWeeks: number,

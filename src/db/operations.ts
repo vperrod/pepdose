@@ -1,4 +1,4 @@
-import { getDB, type UserProtocol, type ScheduledDose, type DoseLog, type Vial, type HealthMarker, type EditHistory, type DeletionRecord } from './schema';
+import { getDB, type UserProtocol, type ScheduledDose, type DoseLog, type Vial, type HealthMarker, type DeletionRecord } from './schema';
 import type { UserName } from '../data/users';
 import { USERS } from '../data/users';
 import { format } from 'date-fns';
@@ -125,43 +125,6 @@ export async function updateScheduledDose(id: string, updates: Partial<Scheduled
   const existing = await db.get('scheduledDoses', id);
   if (!existing) return;
   await db.put('scheduledDoses', { ...existing, ...updates, updatedAt: new Date().toISOString() });
-}
-
-export async function updateFutureScheduledDoses(
-  protocolId: string,
-  fromDate: string,
-  updates: Partial<Pick<ScheduledDose, 'dose' | 'unit' | 'time'>>,
-  editField: string,
-  oldValue: string,
-  newValue: string,
-): Promise<number> {
-  const db = await getDB();
-  const doses = await db.getAllFromIndex('scheduledDoses', 'by-protocol', protocolId);
-  const future = doses.filter(d => d.status === 'upcoming' && d.date >= fromDate);
-
-  const tx = db.transaction('scheduledDoses', 'readwrite');
-  for (const dose of future) {
-    await tx.store.put({
-      ...dose,
-      ...updates,
-      editNote: `${editField} changed on ${format(new Date(), 'yyyy-MM-dd')}`,
-      updatedAt: new Date().toISOString(),
-    });
-  }
-  await tx.done;
-
-  const editDb = await getDB();
-  await editDb.put('editHistory', {
-    id: genId(),
-    protocolId,
-    field: editField,
-    oldValue,
-    newValue,
-    affectedDoses: future.length,
-    date: new Date().toISOString(),
-  });
-
-  return future.length;
 }
 
 export async function deleteUpcomingDosesFrom(protocolId: string, fromDate: string): Promise<void> {
@@ -367,13 +330,6 @@ export async function getHealthMarkers(startDate?: string, endDate?: string): Pr
   return db.getAllFromIndex('healthMarkers', 'by-date');
 }
 
-// --- Edit History ---
-
-export async function getEditHistory(protocolId: string): Promise<EditHistory[]> {
-  const db = await getDB();
-  return db.getAllFromIndex('editHistory', 'by-protocol', protocolId);
-}
-
 // --- Export / Import ---
 
 export async function exportAllData(): Promise<string> {
@@ -384,14 +340,13 @@ export async function exportAllData(): Promise<string> {
     doseLogs: await db.getAll('doseLogs'),
     vials: await db.getAll('vials'),
     healthMarkers: await db.getAll('healthMarkers'),
-    editHistory: await db.getAll('editHistory'),
     exportDate: new Date().toISOString(),
     version: 1,
   };
   return JSON.stringify(data, null, 2);
 }
 
-const IMPORT_STORES = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'editHistory'] as const;
+const IMPORT_STORES = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers'] as const;
 
 // Minimal per-store required string fields — enough to catch a wrong/garbled
 // file before anything touches IndexedDB (every store also requires string id).
@@ -401,7 +356,6 @@ const IMPORT_REQUIRED: Record<(typeof IMPORT_STORES)[number], string[]> = {
   doseLogs: ['peptideId', 'date'],
   vials: ['peptideId'],
   healthMarkers: ['date'],
-  editHistory: ['protocolId'],
 };
 
 // Numeric fields per store (from schema.ts) — absent stays legal, but a present
@@ -413,7 +367,6 @@ const IMPORT_NUMERIC: Record<(typeof IMPORT_STORES)[number], string[]> = {
   doseLogs: ['dose'],
   vials: ['amountMg', 'bacWaterMl', 'dosesRemaining', 'totalDoses'],
   healthMarkers: ['weight', 'bodyFatPct', 'bloodPressureSys', 'bloodPressureDia', 'restingHR', 'fastingGlucose', 'mood', 'energy', 'sleepQuality'],
-  editHistory: ['affectedDoses'],
 };
 
 function assertNumericFields(rec: Record<string, unknown>, fields: string[], label: string): void {
@@ -512,7 +465,7 @@ export async function clearAllData(): Promise<void> {
     // means wipe this device, not delete the cloud copy; sync re-pulls afterwards.
     // One transaction across every store: a per-store loop can abort partway
     // (e.g. a concurrent tab holding a lock) and leave the device half-wiped.
-    const stores = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'editHistory', 'deletions'] as const;
+    const stores = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'deletions'] as const;
     const tx = db.transaction(stores, 'readwrite');
     await Promise.all(stores.map((storeName) => tx.objectStore(storeName).clear()));
     await tx.done;

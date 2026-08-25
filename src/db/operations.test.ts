@@ -18,9 +18,7 @@ import {
   getDoseLogsInRange,
   deleteProtocol,
   deleteUpcomingDosesFrom,
-  updateFutureScheduledDoses,
   deleteScheduledDosesForProtocol,
-  getEditHistory,
   clearAllData,
   importData,
   validateImport,
@@ -253,43 +251,6 @@ describe('protocol schedule regeneration', () => {
       const db = await getDB();
       const ledgerIds = (await db.getAll('deletions')).map((d) => d.id).sort();
       expect(ledgerIds).toEqual(['future-upcoming', 'on-boundary'].sort());
-    });
-  });
-
-  describe('updateFutureScheduledDoses', () => {
-    it('updates only upcoming doses on/after fromDate, leaving logged and earlier rows untouched', async () => {
-      await saveScheduledDoses([...mixedDoses], 'Victor');
-
-      await updateFutureScheduledDoses('p1', '2026-07-15', { dose: 500 }, 'dose', '250', '500');
-
-      const doses = await getScheduledDosesForProtocol('p1');
-      const byId = Object.fromEntries(doses.map((d) => [d.id, d.dose]));
-      expect(byId).toMatchObject({
-        'past-logged': 250,
-        'future-logged': 250,
-        'past-upcoming': 250,
-        'on-boundary': 500,
-        'future-upcoming': 500,
-      });
-    });
-
-    it("leaves other protocols' doses untouched", async () => {
-      await saveScheduledDoses([...mixedDoses], 'Victor');
-
-      await updateFutureScheduledDoses('p1', '2026-07-15', { dose: 500 }, 'dose', '250', '500');
-
-      const [otherDose] = await getScheduledDosesForProtocol('p2');
-      expect(otherDose.dose).toBe(250);
-    });
-
-    it('returns the count of affected doses and records an edit-history entry', async () => {
-      await saveScheduledDoses([...mixedDoses], 'Victor');
-
-      const count = await updateFutureScheduledDoses('p1', '2026-07-15', { dose: 500 }, 'dose', '250', '500');
-
-      expect(count).toBe(2);
-      const history = await getEditHistory('p1');
-      expect(history).toMatchObject([{ protocolId: 'p1', field: 'dose', oldValue: '250', newValue: '500', affectedDoses: 2 }]);
     });
   });
 

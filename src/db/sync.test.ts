@@ -17,6 +17,9 @@ interface Envelope {
   id: string;
   deleted: boolean;
 }
+// One cloud query per synced store (sync.ts KINDS) per pass.
+const QUERIES_PER_PASS = 5;
+
 const cloud = vi.hoisted(() => ({
   remote: [] as {
     kind: string;
@@ -542,8 +545,8 @@ describe('syncNow', () => {
   it('the second sync asks the cloud only for rows changed since the first', async () => {
     await syncNow();
     await syncNow();
-    const firstPass = cloud.queriedSince.slice(0, 6);
-    const secondPass = cloud.queriedSince.slice(6, 12);
+    const firstPass = cloud.queriedSince.slice(0, QUERIES_PER_PASS);
+    const secondPass = cloud.queriedSince.slice(QUERIES_PER_PASS, 2 * QUERIES_PER_PASS);
     expect(firstPass.every((s) => s === null) && secondPass.every((s) => s !== null)).toBe(true);
   });
 
@@ -624,7 +627,7 @@ describe('syncNow', () => {
     cloud.failKinds = new Set(['protocols']);
     await syncNow();
     await syncNow();
-    expect(cloud.queriedSince.slice(6).every((s) => s === null)).toBe(true);
+    expect(cloud.queriedSince.slice(QUERIES_PER_PASS).every((s) => s === null)).toBe(true);
   });
 
   it('triggers landing mid-sync queue exactly one follow-up pass', async () => {
@@ -634,20 +637,20 @@ describe('syncNow', () => {
     expect(await second).toBeNull();
     expect(await third).toBeNull();
     await first;
-    await vi.waitFor(() => expect(cloud.queriedSince.length).toBe(12));
+    await vi.waitFor(() => expect(cloud.queriedSince.length).toBe(2 * QUERIES_PER_PASS));
     await new Promise((r) => setTimeout(r, 20));
-    expect(cloud.queriedSince.length).toBe(12);
+    expect(cloud.queriedSince.length).toBe(2 * QUERIES_PER_PASS);
   });
 
   it('a sync after the follow-up has drained starts fresh (no phantom queued run)', async () => {
     const first = syncNow();
     void syncNow();
     await first;
-    await vi.waitFor(() => expect(cloud.queriedSince.length).toBe(12));
+    await vi.waitFor(() => expect(cloud.queriedSince.length).toBe(2 * QUERIES_PER_PASS));
     cloud.queriedSince = [];
     await syncNow();
     await new Promise((r) => setTimeout(r, 20));
-    expect(cloud.queriedSince.length).toBe(6);
+    expect(cloud.queriedSince.length).toBe(QUERIES_PER_PASS);
   });
 
   it('a wipe landing mid-sync is not repopulated by the in-flight pass', async () => {

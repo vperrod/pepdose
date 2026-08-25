@@ -5,8 +5,8 @@ import { getDB } from './schema';
 
 const OWNED_STORES = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers'] as const;
 
-// Seeds the database exactly as a pre-profiles (v1) install left it: same stores
-// and indexes as the `oldVersion < 1` branch in schema.ts, rows without `owner`.
+// Seeds the database exactly as a pre-profiles (v1) install left it: rows without
+// `owner`, plus the since-removed `editHistory` store real v1 installs still carry.
 async function seedV1Database() {
   const v1 = await openDB('pepdose', 1, {
     upgrade(db) {

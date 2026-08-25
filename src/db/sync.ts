@@ -17,7 +17,7 @@ import { supabase, cloudEnabled } from './supabase';
 // first pull — carry no marker and are never allowed to delete local data;
 // instead the surviving local row is pushed back, repairing the cloud.
 
-const KINDS = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers', 'editHistory'] as const;
+const KINDS = ['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers'] as const;
 
 export interface Timestamped {
   id: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateSchedule, extendSchedule, updateFutureDoses } from './scheduleEngine';
+import { generateSchedule, extendSchedule } from './scheduleEngine';
 import { getPeptideById } from '../data/peptides';
 import type { ScheduledDose } from '../db/schema';
 
@@ -219,66 +219,6 @@ const scheduled = (id: string, date: string, status: ScheduledDose['status'] = '
   route: 'subq',
   status,
   weekNumber: 1,
-});
-
-describe('updateFutureDoses', () => {
-  it('updates only upcoming doses on/after the pivot date', () => {
-    const result = updateFutureDoses(
-      [scheduled('a', '2026-01-05', 'logged'), scheduled('b', '2026-01-06'), scheduled('c', '2026-01-07')],
-      '2026-01-06',
-      { dose: 500 },
-    );
-    expect(result.map(d => d.dose)).toEqual([250, 500, 500]);
-  });
-
-  it('leaves past upcoming doses untouched', () => {
-    const result = updateFutureDoses([scheduled('a', '2026-01-05')], '2026-01-06', { dose: 500 });
-    expect(result[0].dose).toBe(250);
-  });
-
-  it('updates multiple fields with an edit note', () => {
-    const result = updateFutureDoses(
-      [scheduled('a', '2026-01-06'), scheduled('b', '2026-01-07')],
-      '2026-01-06',
-      { dose: 500, time: '19:00', unit: 'mg' },
-    );
-    expect(result[0]).toMatchObject({ dose: 500, time: '19:00', unit: 'mg' });
-    expect(typeof result[0].editNote).toBe('string');
-    expect(result[1]).toMatchObject({ dose: 500, time: '19:00', unit: 'mg' });
-    expect(typeof result[1].editNote).toBe('string');
-  });
-
-  it('does not mutate logged/skipped/missed doses even after their date', () => {
-    const result = updateFutureDoses(
-      [
-        scheduled('a', '2026-01-06', 'logged'),
-        scheduled('b', '2026-01-06', 'skipped'),
-        scheduled('c', '2026-01-06', 'missed'),
-        scheduled('d', '2026-01-06', 'upcoming'),
-      ],
-      '2026-01-06',
-      { dose: 999 },
-    );
-    expect(result[0].dose).toBe(250);
-    expect(result[0].status).toBe('logged');
-    expect(result[1].dose).toBe(250);
-    expect(result[1].status).toBe('skipped');
-    expect(result[2].dose).toBe(250);
-    expect(result[2].status).toBe('missed');
-    expect(result[3].dose).toBe(999);
-    expect(result[3].status).toBe('upcoming');
-  });
-
-  it('does not modify anything when there are no future upcoming doses', () => {
-    const input = [scheduled('a', '2026-01-05', 'upcoming'), scheduled('b', '2026-01-06', 'logged')];
-    const pivot = '2026-01-10';
-    const result = updateFutureDoses(JSON.parse(JSON.stringify(input)), pivot, { dose: 1 });
-    expect(result).toEqual(input);
-    expect(result[0].dose).toBe(250);
-    expect(result[0].status).toBe('upcoming');
-    expect(result[1].dose).toBe(250);
-    expect(result[1].status).toBe('logged');
-  });
 });
 
 describe('extendSchedule', () => {
