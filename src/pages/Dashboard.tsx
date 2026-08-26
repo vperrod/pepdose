@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { format, differenceInMinutes, differenceInHours, differenceInWeeks, parseISO } from 'date-fns';
 import { Syringe, TrendingUp, ChevronRight, Zap, Flame } from 'lucide-react';
-import { getScheduledDosesForDate, getProtocols, getDoseLogsForDate, getScheduledDosesForProtocol } from '../db/operations';
+import { getScheduledDosesForDate, getProtocols, getDoseLogsForDate, getScheduledDosesForProtocols } from '../db/operations';
 import { getPeptideById } from '../data/peptides';
 import { scheduleReminders } from '../utils/notifications';
 import { nextTitrationStep, type NextStep } from '../utils/titrationCoach';
@@ -88,7 +88,7 @@ export function Dashboard() {
   useEffect(() => {
     (async () => {
       const active = await getProtocols('active');
-      const allDoses = (await Promise.all(active.map(p => getScheduledDosesForProtocol(p.id)))).flat();
+      const allDoses = await getScheduledDosesForProtocols(active.map(p => p.id));
       setAllScheduled(allDoses);
     })();
   }, [reloadKey]);

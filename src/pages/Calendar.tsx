@@ -4,7 +4,7 @@ import {
   isSameMonth, isSameDay, isToday, addMonths, subMonths, addDays, addWeeks, parseISO,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getScheduledDosesInRange, getDoseLogsInRange, getProtocols, getScheduledDosesForProtocol } from '../db/operations';
+import { getScheduledDosesInRange, getDoseLogsInRange, getProtocols, getScheduledDosesForProtocols } from '../db/operations';
 import { clicksForDose, formatClicks, penMlPerClick } from '../utils/penClicks';
 import { withoutInactiveUpcoming } from '../utils/doseVisibility';
 import { getPeptideById } from '../data/peptides';
@@ -65,10 +65,10 @@ export function Calendar() {
   useEffect(() => {
     async function loadTimeline() {
       const protos = await getProtocols('active');
-      const byProto = new Map<string, ScheduledDose[]>();
-      await Promise.all(protos.map(async (p) => {
-        byProto.set(p.id, await getScheduledDosesForProtocol(p.id));
-      }));
+      const byProto = new Map<string, ScheduledDose[]>(protos.map(p => [p.id, []]));
+      for (const d of await getScheduledDosesForProtocols(protos.map(p => p.id))) {
+        byProto.get(d.protocolId)!.push(d);
+      }
       setTimelineProtocols(protos);
       setDosesByProtocol(byProto);
     }

@@ -115,6 +115,14 @@ export async function getScheduledDosesForProtocol(protocolId: string): Promise<
   return db.getAllFromIndex('scheduledDoses', 'by-protocol', protocolId);
 }
 
+// One store read instead of one indexed query per protocol (N+1 on Dashboard/Calendar).
+export async function getScheduledDosesForProtocols(protocolIds: string[]): Promise<ScheduledDose[]> {
+  if (protocolIds.length === 0) return [];
+  const db = await getDB();
+  const wanted = new Set(protocolIds);
+  return (await db.getAll('scheduledDoses')).filter(d => wanted.has(d.protocolId));
+}
+
 export async function getScheduledDosesInRange(startDate: string, endDate: string): Promise<ScheduledDose[]> {
   const db = await getDB();
   return db.getAllFromIndex('scheduledDoses', 'by-date', IDBKeyRange.bound(startDate, endDate));

@@ -12,6 +12,7 @@ import {
   getProtocol,
   saveScheduledDoses,
   getScheduledDosesForProtocol,
+  getScheduledDosesForProtocols,
   getScheduledDosesInRange,
   getScheduledDosesForDate,
   getDoseLogsForDate,
@@ -123,6 +124,20 @@ describe('logDose / deleteDoseLog inventory round trip', () => {
     const log = await logDose(baseLog);
     await deleteDoseLog(log.id);
     expect(await getAllDoseLogs()).toEqual([]);
+  });
+});
+
+describe('getScheduledDosesForProtocols', () => {
+  it('returns doses of every listed protocol and none of the others', async () => {
+    await saveScheduledDoses([
+      { id: 'd1', protocolId: 'p1', peptideId: 'bpc-157', date: '2026-07-14', time: '08:00', dose: 250, unit: 'mcg', route: 'subq', status: 'upcoming', weekNumber: 1 },
+      { id: 'd2', protocolId: 'p2', peptideId: 'bpc-157', date: '2026-07-15', time: '08:00', dose: 250, unit: 'mcg', route: 'subq', status: 'upcoming', weekNumber: 1 },
+      { id: 'd3', protocolId: 'p3', peptideId: 'bpc-157', date: '2026-07-16', time: '08:00', dose: 250, unit: 'mcg', route: 'subq', status: 'upcoming', weekNumber: 1 },
+    ], 'Victor');
+
+    const doses = await getScheduledDosesForProtocols(['p1', 'p3']);
+
+    expect(doses.map((d) => d.id).sort()).toEqual(['d1', 'd3']);
   });
 });
 
