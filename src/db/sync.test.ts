@@ -679,6 +679,36 @@ describe('syncNow', () => {
     expect(await db.get('protocols', 'p1')).toBeUndefined();
   });
 
+  it('a restore landing mid-sync is not overwritten by the in-flight pass', async () => {
+    const ts = '2024-01-01T00:00:00Z';
+    cloud.remote = [
+      {
+        kind: 'protocols',
+        id: 'p1',
+        data: { id: 'p1', updatedAt: ts },
+        updated_at: ts,
+        deleted: false,
+      },
+    ];
+    await syncNow();
+    const stale = new Date(Date.now() - 1_000).toISOString();
+    cloud.remote[0].data.updatedAt = stale;
+    cloud.remote[0].updated_at = stale;
+    // Stall a different kind: the pass reads the stale local protocol row
+    // before the restore, then applies its merge plan after the restore.
+    cloud.delayKinds = new Set(['doseLogs']);
+
+    const background = syncNow();
+    await new Promise((r) => setTimeout(r, 5)); // let the pass snapshot local protocols
+    const backup = { protocols: [{ id: 'p1', owner: 'Victor', name: 'restored', startDate: '2024-01-01', status: 'active', doseConfigs: [], updatedAt: ts }] };
+    await importData(JSON.stringify(backup), 'Victor');
+    await background;
+    cloud.delayKinds = new Set();
+
+    const db = await getDB();
+    expect((await db.get('protocols', 'p1'))?.updatedAt).not.toBe(stale);
+  });
+
   it('parallelizes all 6 kinds within a single pass', async () => {
     beforeEach(async () => {
       cloud.delayKinds = new Set(['protocols', 'doseLogs', 'vials']);
