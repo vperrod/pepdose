@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateSchedule, extendSchedule } from './scheduleEngine';
+import { generateSchedule, extendSchedule, phasesTotalWeeks, summarizePhases } from './scheduleEngine';
 import { getPeptideById } from '../data/peptides';
 import type { ScheduledDose } from '../db/schema';
 
@@ -263,5 +263,37 @@ describe('extendSchedule', () => {
     expect(extra).toHaveLength(7);
     expect(extra.find(d => d.date === '2026-01-05')).toBeUndefined();
     expect(extra.find(d => d.date === '2026-01-06')).toBeUndefined();
+  });
+});
+
+describe('phasesTotalWeeks', () => {
+  it('returns 0 for empty phases', () => {
+    expect(phasesTotalWeeks([])).toBe(0);
+  });
+
+  it('returns the largest weekEnd regardless of phase order', () => {
+    expect(phasesTotalWeeks([
+      { weekStart: 5, weekEnd: 8, frequency: 'eod' },
+      { weekStart: 1, weekEnd: 4, frequency: 'daily' },
+    ])).toBe(8);
+  });
+});
+
+describe('summarizePhases', () => {
+  it('returns empty string for empty phases', () => {
+    expect(summarizePhases([])).toBe('');
+  });
+
+  it('formats frequency and week count per phase in array order', () => {
+    expect(summarizePhases([
+      { weekStart: 1, weekEnd: 2, frequency: 'daily' },
+      { weekStart: 3, weekEnd: 4, frequency: '5x_week' },
+    ])).toBe('Daily ×2wk → 5×/wk ×2wk → off');
+  });
+
+  it('renders weekly_days phases as weekday names', () => {
+    expect(summarizePhases([
+      { weekStart: 1, weekEnd: 4, frequency: 'weekly_days', daysOfWeek: [1, 4] },
+    ])).toBe('Mon/Thu ×4wk → off');
   });
 });
