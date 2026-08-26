@@ -440,24 +440,34 @@ export async function importData(jsonString: string, owner: UserName): Promise<v
 
     const ownedStores = new Set(['protocols', 'scheduledDoses', 'doseLogs', 'vials', 'healthMarkers']);
     const now = new Date().toISOString();
-    for (const storeName of IMPORT_STORES) {
-      if (data[storeName]) {
-        const tx = db.transaction([storeName, 'deletions'], 'readwrite');
-        const store = tx.objectStore(storeName);
-        const ledger = tx.objectStore('deletions');
-        for (const item of data[storeName] as Record<string, unknown>[]) {
-          if (ownedStores.has(storeName) && !item.owner) item.owner = owner;
-          // Restore is an explicit resurrection: without a fresh stamp, a remote
-          // tombstone newer than the backup would LWW-delete the row on next sync.
-          item.updatedAt = now;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await store.put(item as any);
-          // Restoring a record cancels any pending delete of it.
-          await ledger.delete(item.id as string);
+    // One transaction across every store so a mid-restore failure (quota,
+    // tab close) rolls back instead of leaving a half-restored device.
+    const tx = db.transaction([...IMPORT_STORES, 'deletions'], 'readwrite');
+    const ledger = tx.objectStore('deletions');
+    try {
+      for (const storeName of IMPORT_STORES) {
+        if (data[storeName]) {
+          const store = tx.objectStore(storeName);
+          for (const item of data[storeName] as Record<string, unknown>[]) {
+            if (ownedStores.has(storeName) && !item.owner) item.owner = owner;
+            // Restore is an explicit resurrection: without a fresh stamp, a remote
+            // tombstone newer than the backup would LWW-delete the row on next sync.
+            item.updatedAt = now;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await store.put(item as any);
+            // Restoring a record cancels any pending delete of it.
+            await ledger.delete(item.id as string);
+          }
         }
-        await tx.done;
       }
+    } catch (err) {
+      // A failed request already aborts the transaction; a thrown error would
+      // otherwise let the partial writes auto-commit.
+      try { tx.abort(); } catch { /* already aborted */ }
+      await tx.done.catch(() => {});
+      throw err;
     }
+    await tx.done;
   } finally {
     resumeSync();
   }

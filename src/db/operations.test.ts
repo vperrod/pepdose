@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   saveVial,
   getVials,
@@ -383,5 +383,23 @@ describe('importData', () => {
     const db = await getDB();
     expect(await db.get('deletions', log.id)).toBeUndefined();
     expect((await getAllDoseLogs()).map((l) => l.id)).toEqual([log.id]);
+  });
+
+  it('rolls back every store when a later store fails mid-restore', async () => {
+    const backup = {
+      version: 1,
+      vials: [{ ...baseVial, id: 'v-atomic', createdAt: '2026-01-01T00:00:00.000Z' }],
+      healthMarkers: [{ id: 'hm-1', date: '2026-01-01', type: 'weight', value: 80, owner: 'Victor' }],
+    };
+    const realPut = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args) {
+      if (this.name === 'healthMarkers') throw new Error('quota exceeded');
+      return realPut.apply(this, args);
+    });
+
+    await expect(importData(JSON.stringify(backup), 'Victor')).rejects.toThrow('quota exceeded');
+
+    vi.restoreAllMocks();
+    expect(await getVials('bpc-157')).toHaveLength(0);
   });
 });
