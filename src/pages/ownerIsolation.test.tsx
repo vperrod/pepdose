@@ -18,6 +18,12 @@ import { Protocols } from './Protocols';
 import { HalfLife } from './HalfLife';
 import { InjectionMap } from './InjectionMap';
 import { VialInventory } from './VialInventory';
+import { Symptoms } from './Symptoms';
+import { HealthMarkers } from './HealthMarkers';
+import { QuickLog } from './QuickLog';
+import { DoseHistory } from './DoseHistory';
+import { ExperienceGuide } from './ExperienceGuide';
+import { ProtocolTimeline } from '../components/ProtocolTimeline';
 import type { UserProtocol, ScheduledDose, HealthMarker, DoseLog, Vial } from '../db/schema';
 
 const ops = vi.hoisted(() => ({
@@ -82,6 +88,14 @@ const doseLogOn = (owner: 'Victor' | 'Nadia', date: string): DoseLog => ({
   id: `l-${owner}-${date}`, protocolId: `p-${owner}`, peptideId: 'bpc-157', date, time: '08:00',
   dose: 250, unit: 'mcg', injectionSite: 'Left abdomen', owner, createdAt: `${date}T08:00:00.000Z`,
 } as DoseLog);
+
+const symptomLog = (owner: 'Victor' | 'Nadia'): DoseLog => ({
+  ...doseLog(owner), symptoms: [{ name: `${owner.toUpperCase()}-NAUSEA`, severity: 5 }],
+} as DoseLog);
+
+const upcoming = (owner: 'Victor' | 'Nadia'): ScheduledDose => ({
+  ...stepUp(`p-${owner}`, owner), isTitrationStepUp: false,
+} as ScheduledDose);
 
 const vial = (owner: 'Victor' | 'Nadia'): Vial => ({
   id: `v-${owner}`, owner, peptideId: 'bpc-157', amountMg: 5, bacWaterMl: 2,
@@ -187,5 +201,81 @@ describe('viewing as Victor never shows Nadia data', () => {
     ops.getDoseLogsForPeptide.mockResolvedValue([doseLogOn('Victor', '2026-01-01'), doseLogOn('Victor', '2026-01-04')]);
     await renderAsVictor(<VialInventory />);
     expect(screen.getByText(/Est\. empty/)).toBeTruthy();
+  });
+
+  it('Symptoms: trend list ignores the other profile\'s symptoms', async () => {
+    ops.getDoseLogsSince.mockResolvedValue([symptomLog('Nadia')]);
+    await renderAsVictor(<Symptoms />);
+    expect(screen.queryByText('NADIA-NAUSEA')).toBeNull();
+  });
+
+  it('Symptoms: trend list still shows the active profile\'s symptoms', async () => {
+    ops.getDoseLogsSince.mockResolvedValue([symptomLog('Victor')]);
+    await renderAsVictor(<Symptoms />);
+    expect(screen.getByText('VICTOR-NAUSEA')).toBeTruthy();
+  });
+
+  it('HealthMarkers: progress summary ignores the other profile\'s markers', async () => {
+    ops.getHealthMarkers.mockResolvedValue([{ id: 'm1', date: TODAY, weight: 70, owner: 'Nadia' } as HealthMarker]);
+    await renderAsVictor(<HealthMarkers />);
+    await act(async () => { fireEvent.click(screen.getByText('Trends')); });
+    expect(screen.queryByText(/70 kg/)).toBeNull();
+  });
+
+  it('HealthMarkers: progress summary still shows the active profile\'s markers', async () => {
+    ops.getHealthMarkers.mockResolvedValue([{ id: 'm1', date: TODAY, weight: 70, owner: 'Victor' } as HealthMarker]);
+    await renderAsVictor(<HealthMarkers />);
+    await act(async () => { fireEvent.click(screen.getByText('Trends')); });
+    expect(screen.getByText(/70 kg/)).toBeTruthy();
+  });
+
+  it('QuickLog: pending list ignores the other profile\'s doses', async () => {
+    ops.getProtocols.mockResolvedValue([protocol({ id: 'p-Nadia', owner: 'Nadia' })]);
+    ops.getScheduledDosesForDate.mockResolvedValue([upcoming('Nadia')]);
+    await renderAsVictor(<QuickLog />);
+    expect(screen.getByText('All done for today')).toBeTruthy();
+  });
+
+  it('QuickLog: pending list still shows the active profile\'s doses', async () => {
+    ops.getProtocols.mockResolvedValue([protocol({ id: 'p-Victor', owner: 'Victor' })]);
+    ops.getScheduledDosesForDate.mockResolvedValue([upcoming('Victor')]);
+    await renderAsVictor(<QuickLog />);
+    expect(screen.getByText('1 remaining today')).toBeTruthy();
+  });
+
+  it('DoseHistory: peptide filter ignores the other profile\'s logs', async () => {
+    ops.getDoseLogsSince.mockResolvedValue([doseLog('Nadia')]);
+    await renderAsVictor(<DoseHistory />);
+    expect(screen.queryByText('BPC-157')).toBeNull();
+  });
+
+  it('DoseHistory: peptide filter still lists the active profile\'s logs', async () => {
+    ops.getDoseLogsSince.mockResolvedValue([doseLog('Victor')]);
+    await renderAsVictor(<DoseHistory />);
+    expect(screen.getByText('BPC-157')).toBeTruthy();
+  });
+
+  it('ExperienceGuide: active guides ignore the other profile\'s protocols', async () => {
+    ops.getProtocols.mockResolvedValue([protocol({ id: 'pn', owner: 'Nadia' })]);
+    await renderAsVictor(<ExperienceGuide />);
+    expect(screen.getByText(/No active protocols/)).toBeTruthy();
+  });
+
+  it('ExperienceGuide: active guides still show the active profile\'s protocols', async () => {
+    ops.getProtocols.mockResolvedValue([protocol({ id: 'pv', owner: 'Victor' })]);
+    await renderAsVictor(<ExperienceGuide />);
+    expect(screen.queryByText(/No active protocols/)).toBeNull();
+  });
+
+  it('ProtocolTimeline: lanes ignore the other profile\'s protocols', async () => {
+    const nadia = protocol({ id: 'pn', name: 'NADIA-PROTO', owner: 'Nadia' });
+    await renderAsVictor(<ProtocolTimeline protocols={[nadia]} dosesByProtocol={new Map([['pn', [upcoming('Nadia')]]])} logsByDoseId={new Map()} />);
+    expect(screen.queryByText('NADIA-PROTO')).toBeNull();
+  });
+
+  it('ProtocolTimeline: lanes still show the active profile\'s protocols', async () => {
+    const victor = protocol({ id: 'pv', name: 'VICTOR-PROTO', owner: 'Victor' });
+    await renderAsVictor(<ProtocolTimeline protocols={[victor]} dosesByProtocol={new Map([['pv', [upcoming('Victor')]]])} logsByDoseId={new Map()} />);
+    expect(screen.getByText('VICTOR-PROTO')).toBeTruthy();
   });
 });
