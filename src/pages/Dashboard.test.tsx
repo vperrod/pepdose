@@ -10,7 +10,7 @@ const ops = vi.hoisted(() => ({
   getScheduledDosesForDate: vi.fn(async () => [] as ScheduledDose[]),
   getProtocols: vi.fn(async () => [] as UserProtocol[]),
   getDoseLogsForDate: vi.fn(async () => []),
-  getScheduledDosesForProtocol: vi.fn(async () => [] as ScheduledDose[]),
+  getScheduledDosesForProtocols: vi.fn(async () => [] as ScheduledDose[]),
 }));
 
 vi.mock('../db/operations', () => ops);

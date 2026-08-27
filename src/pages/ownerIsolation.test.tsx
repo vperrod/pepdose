@@ -30,6 +30,7 @@ const ops = vi.hoisted(() => ({
   getProtocols: vi.fn(async () => [] as UserProtocol[]),
   getProtocol: vi.fn(async () => undefined as UserProtocol | undefined),
   getScheduledDosesForProtocol: vi.fn(async () => [] as ScheduledDose[]),
+  getScheduledDosesForProtocols: vi.fn(async () => [] as ScheduledDose[]),
   getScheduledDosesForDate: vi.fn(async () => [] as ScheduledDose[]),
   getScheduledDosesInRange: vi.fn(async () => [] as ScheduledDose[]),
   getDoseLogsForDate: vi.fn(async () => []),
@@ -118,7 +119,7 @@ describe('viewing as Victor never shows Nadia data', () => {
   it('Dashboard: titration coach ignores the other profile\'s step-up', async () => {
     const nadia = protocol({ id: 'pn', owner: 'Nadia', titrationAlerts: true });
     ops.getProtocols.mockResolvedValue([nadia]);
-    ops.getScheduledDosesForProtocol.mockResolvedValue([stepUp('pn', 'Nadia')]);
+    ops.getScheduledDosesForProtocols.mockResolvedValue([stepUp('pn', 'Nadia')]);
     await renderAsVictor(<Dashboard />);
     expect(screen.queryByText('Titration coach')).toBeNull();
   });
@@ -126,7 +127,7 @@ describe('viewing as Victor never shows Nadia data', () => {
   it('Dashboard: titration coach still shows the active profile\'s step-up', async () => {
     const victor = protocol({ id: 'pv', owner: 'Victor', titrationAlerts: true });
     ops.getProtocols.mockResolvedValue([victor]);
-    ops.getScheduledDosesForProtocol.mockResolvedValue([stepUp('pv', 'Victor')]);
+    ops.getScheduledDosesForProtocols.mockResolvedValue([stepUp('pv', 'Victor')]);
     await renderAsVictor(<Dashboard />);
     expect(screen.getByText('Titration coach')).toBeTruthy();
   });
