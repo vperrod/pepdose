@@ -15,6 +15,31 @@ function ledgerEntry(kind: DeletionRecord['kind'], id: string): DeletionRecord {
   return { id, kind, deletedAt: new Date().toISOString() };
 }
 
+interface VialStore {
+  index(name: 'by-peptide'): { getAll(key: string): Promise<Vial[]> };
+  put(value: Vial): unknown;
+}
+
+/** Draws down one dose from the active vial for a peptide, on an
+ *  already-open vials store — shared by decrementVialDose (own transaction)
+ *  and logDose (same tx as the doseLogs/scheduledDoses writes, so a thrown
+ *  error can never leave inventory desynced from logged history). */
+async function drawDownVial(store: VialStore, peptideId: string, owner?: UserName): Promise<void> {
+  const vials = await store.index('by-peptide').getAll(peptideId);
+  const active = vials.find(
+    v => v.status === 'active' && v.dosesRemaining > 0 && (!owner || v.owner === owner),
+  );
+  if (active) {
+    const remaining = active.dosesRemaining - 1;
+    void store.put({
+      ...active,
+      dosesRemaining: remaining,
+      status: remaining <= 0 ? 'empty' : 'active',
+      updatedAt: new Date().toISOString(),
+    });
+  }
+}
+
 // --- Protocols ---
 
 export async function saveProtocol(protocol: Omit<UserProtocol, 'id' | 'createdAt' | 'updatedAt'>): Promise<UserProtocol> {
@@ -183,20 +208,7 @@ export async function logDose(log: Omit<DoseLog, 'id' | 'createdAt'>): Promise<D
 
   // Draw down inventory for the peptide's active vial so "doses remaining"
   // and the run-out forecast actually track logged injections.
-  const vialStore = tx.objectStore('vials');
-  const vials = await vialStore.index('by-peptide').getAll(log.peptideId);
-  const active = vials.find(
-    v => v.status === 'active' && v.dosesRemaining > 0 && (!log.owner || v.owner === log.owner),
-  );
-  if (active) {
-    const remaining = active.dosesRemaining - 1;
-    void vialStore.put({
-      ...active,
-      dosesRemaining: remaining,
-      status: remaining <= 0 ? 'empty' : 'active',
-      updatedAt: now,
-    });
-  }
+  await drawDownVial(tx.objectStore('vials'), log.peptideId, log.owner);
 
   await tx.done;
   return full;
@@ -282,19 +294,7 @@ export async function decrementVialDose(peptideId: string, owner?: UserName): Pr
   // Read + write inside one readwrite transaction so two concurrent logs can't
   // both read the same dosesRemaining and lose a draw-down.
   const tx = db.transaction('vials', 'readwrite');
-  const vials = await tx.store.index('by-peptide').getAll(peptideId);
-  const active = vials.find(
-    v => v.status === 'active' && v.dosesRemaining > 0 && (!owner || v.owner === owner),
-  );
-  if (active) {
-    const remaining = active.dosesRemaining - 1;
-    void tx.store.put({
-      ...active,
-      dosesRemaining: remaining,
-      status: remaining <= 0 ? 'empty' : 'active',
-      updatedAt: new Date().toISOString(),
-    });
-  }
+  await drawDownVial(tx.store, peptideId, owner);
   await tx.done;
 }
 
