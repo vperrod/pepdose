@@ -709,6 +709,34 @@ describe('syncNow', () => {
     expect((await db.get('protocols', 'p1'))?.updatedAt).not.toBe(stale);
   });
 
+  it('a local edit landing mid-sync is not overwritten by the stale plan', async () => {
+    const ts = '2024-01-01T00:00:00Z';
+    cloud.remote = [
+      {
+        kind: 'protocols',
+        id: 'p1',
+        data: { id: 'p1', updatedAt: ts },
+        updated_at: ts,
+        deleted: false,
+      },
+    ];
+    await syncNow();
+    const stale = new Date(Date.now() - 1_000).toISOString();
+    cloud.remote[0].data.updatedAt = stale;
+    cloud.remote[0].updated_at = stale;
+    cloud.delayKinds = new Set(['doseLogs']);
+
+    const background = syncNow();
+    await new Promise((r) => setTimeout(r, 5)); // let the pass snapshot local protocols
+    const edited = new Date().toISOString();
+    const db = await getDB();
+    await db.put('protocols', { id: 'p1', updatedAt: edited } as never);
+    await background;
+    cloud.delayKinds = new Set();
+
+    expect((await db.get('protocols', 'p1'))?.updatedAt).toBe(edited);
+  });
+
   it('parallelizes all 6 kinds within a single pass', async () => {
     beforeEach(async () => {
       cloud.delayKinds = new Set(['protocols', 'doseLogs', 'vials']);

@@ -203,6 +203,7 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
         localDelete: string[];
         pushTombstone: DeletionRecord[];
         ledgerResolved: string[];
+        localTs: Map<string, number>;
       }
     >();
 
@@ -248,7 +249,10 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
             localRows = [...recent, ...extra];
           }
           const deletions = allDeletions.filter((d) => d.kind === kind);
-          plans.set(kind, planMerge(localRows, remote, deletions));
+          plans.set(kind, {
+            ...planMerge(localRows, remote, deletions),
+            localTs: new Map(localRows.map((r) => [r.id, rowTs(r)])),
+          });
         } catch (e) {
           const msg = `${kind}: ${e instanceof Error ? e.message : String(e)}`;
           console.error('[sync] ' + msg);
@@ -312,11 +316,22 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
     for (const kind of KINDS) {
       const plan = plans.get(kind)!;
       const store = tx.objectStore(kind);
+      // Phase 2's network round trip can take seconds; a local edit landing in
+      // that window is newer than the snapshot Phase 1 planned against, so it
+      // must not be overwritten. The next pass re-diffs it.
+      const editedSince = async (id: string) => {
+        const current = await store.get(id);
+        return current != null && rowTs(current) > (plan.localTs.get(id) ?? -1);
+      };
       for (const row of plan.localPut) {
+        if (await editedSince(row.id)) continue;
         await store.put(row);
+        pulled++;
       }
       for (const id of plan.localDelete) {
+        if (await editedSince(id)) continue;
         await store.delete(id);
+        pulled++;
       }
       const ledgerDone = [...plan.ledgerResolved];
       if (plan.pushTombstone.length) {
@@ -327,11 +342,6 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
       }
     }
     await tx.done;
-
-    for (const kind of KINDS) {
-      const plan = plans.get(kind)!;
-      pulled += plan.localPut.length + plan.localDelete.length;
-    }
 
     if (!errors.length) {
       cursor = { userId, since: started, lastFull: delta !== null ? cursor!.lastFull : started };
