@@ -14,8 +14,12 @@ const ops = vi.hoisted(() => ({
   saveVial: vi.fn(async () => 'v1'),
   updateVial: vi.fn(async () => undefined),
   getDoseLogsForPeptide: vi.fn(async () => []),
+  getAllDoseLogs: vi.fn(async () => []),
 }));
 vi.mock('../db/operations', () => ops);
+
+const forecast = vi.hoisted(() => ({ predictEmptyDate: vi.fn(() => null) }));
+vi.mock('../utils/vialForecast', () => forecast);
 
 async function renderForm() {
   localStorage.setItem('pepdose-view-filter', 'Victor');
@@ -36,6 +40,25 @@ function fill(placeholder: string, value: string) {
 
 beforeEach(() => { Object.values(ops).forEach(fn => fn.mockClear()); });
 afterEach(cleanup);
+
+it("predicts a vial's empty date from its own owner's logs only", async () => {
+  ops.getVials.mockResolvedValueOnce([{
+    id: 'v1', peptideId: 'bpc-157', owner: 'Victor', status: 'active',
+    dosesRemaining: 10, totalDoses: 20, amountMg: 10, bacWaterMl: 2,
+    reconstitutionDate: '2026-08-01T00:00:00.000Z',
+  } as Vial]);
+  ops.getAllDoseLogs.mockResolvedValueOnce([
+    { peptideId: 'bpc-157', owner: 'Victor', date: '2026-08-30' },
+    { peptideId: 'bpc-157', owner: 'Nadia', date: '2026-08-31' },
+  ]);
+  localStorage.setItem('pepdose-view-filter', 'Victor');
+
+  await act(async () => {
+    render(<ViewFilterProvider><VialInventory /></ViewFilterProvider>);
+  });
+
+  expect(forecast.predictEmptyDate).toHaveBeenCalledWith(10, ['2026-08-30'], expect.any(Date));
+});
 
 it("prefills total doses from the selected peptide's own vial defaults", async () => {
   await renderForm();
