@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Droplets, AlertTriangle, Trash2, X } from 'lucide-react';
-import { getVials, saveVial, updateVial, getDoseLogsForPeptide } from '../db/operations';
+import { getVials, saveVial, updateVial, getAllDoseLogs } from '../db/operations';
 import { PEPTIDES, getPeptideById } from '../data/peptides';
 import type { Vial } from '../db/schema';
 import { format, differenceInDays, parseISO } from 'date-fns';
@@ -64,17 +64,13 @@ export function VialInventory() {
   const load = useCallback(async () => {
     const list = await getVials();
     setVials(list);
-    const entries = await Promise.all(
-      list.filter(v => v.status === 'active').map(async (v) => {
-        const plogs = await getDoseLogsForPeptide(v.peptideId);
-        const ownLogs = plogs.filter(l => l.owner === v.owner);
-        const d = predictEmptyDate(v.dosesRemaining, ownLogs.map(l => l.date), new Date());
-        return [v.id, d] as const;
-      })
-    );
+    // One store read instead of one indexed query per active vial (N+1).
+    const allLogs = await getAllDoseLogs();
     const map: Record<string, string> = {};
-    for (const [id, d] of entries) {
-      if (d) map[id] = d;
+    for (const v of list.filter(v => v.status === 'active')) {
+      const ownLogs = allLogs.filter(l => l.peptideId === v.peptideId && l.owner === v.owner);
+      const d = predictEmptyDate(v.dosesRemaining, ownLogs.map(l => l.date), new Date());
+      if (d) map[v.id] = d;
     }
     setEmptyDates(map);
   }, []);
