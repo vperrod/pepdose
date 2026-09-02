@@ -1,6 +1,7 @@
 import { getDB, type UserProtocol, type ScheduledDose, type DoseLog, type Vial, type HealthMarker, type DeletionRecord } from './schema';
 import type { UserName } from '../data/users';
 import { USERS } from '../data/users';
+import { filterByOwner, type ViewFilter } from '../context/ownerFilter';
 import { format } from 'date-fns';
 import { planDoseDedupe } from '../utils/dedupeDoses';
 import { suspendSync } from './sync';
@@ -340,14 +341,17 @@ export async function getHealthMarkers(startDate?: string, endDate?: string): Pr
 
 // --- Export / Import ---
 
-export async function exportAllData(): Promise<string> {
+/** `filter` is the active view filter: a backup taken while viewing one
+ *  profile must not hand that profile the other one's rows. Required, not
+ *  defaulted — an unscoped export is exactly the leak this guards against. */
+export async function exportAllData(filter: ViewFilter): Promise<string> {
   const db = await getDB();
   const data = {
-    protocols: await db.getAll('protocols'),
-    scheduledDoses: await db.getAll('scheduledDoses'),
-    doseLogs: await db.getAll('doseLogs'),
-    vials: await db.getAll('vials'),
-    healthMarkers: await db.getAll('healthMarkers'),
+    protocols: filterByOwner(await db.getAll('protocols'), filter),
+    scheduledDoses: filterByOwner(await db.getAll('scheduledDoses'), filter),
+    doseLogs: filterByOwner(await db.getAll('doseLogs'), filter),
+    vials: filterByOwner(await db.getAll('vials'), filter),
+    healthMarkers: filterByOwner(await db.getAll('healthMarkers'), filter),
     exportDate: new Date().toISOString(),
     version: 1,
   };

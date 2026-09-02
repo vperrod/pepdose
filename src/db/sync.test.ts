@@ -429,7 +429,7 @@ describe('backup restore vs newer tombstone (F17 regression)', () => {
       unit: 'mcg',
       route: 'subq',
     });
-    const backup = JSON.parse(await exportAllData());
+    const backup = JSON.parse(await exportAllData('all'));
     backup.doseLogs[0].updatedAt = '2020-01-01T00:00:00.000Z';
 
     await importData(JSON.stringify(backup), 'Victor');

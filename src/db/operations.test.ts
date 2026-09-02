@@ -352,8 +352,22 @@ describe('validateImport', () => {
 
   it('accepts a real export round trip', async () => {
     await saveVial(baseVial);
-    const json = await exportAllData();
+    const json = await exportAllData('all');
     expect(() => validateImport(JSON.parse(json))).not.toThrow();
+  });
+});
+
+describe('exportAllData', () => {
+  it('scopes every store to the active profile so a backup cannot carry the other profile', async () => {
+    await saveVial(baseVial);
+    await saveVial({ ...baseVial, owner: 'Nadia' });
+    await logDose(baseLog);
+    await logDose({ ...baseLog, owner: 'Nadia' });
+
+    const backup = JSON.parse(await exportAllData('Victor'));
+
+    const owners = [...backup.vials, ...backup.doseLogs].map((r: { owner: string }) => r.owner);
+    expect(owners).toEqual(['Victor', 'Victor']);
   });
 });
 
@@ -367,7 +381,7 @@ describe('importData', () => {
 
   it('stamps imported rows with a fresh updatedAt so a newer remote tombstone cannot re-delete them', async () => {
     const log = await logDose(baseLog);
-    const exported = await exportAllData();
+    const exported = await exportAllData('all');
     const stale = JSON.parse(exported);
     stale.doseLogs[0].updatedAt = '2020-01-01T00:00:00.000Z';
     const before = Date.now();
@@ -390,7 +404,7 @@ describe('importData', () => {
   it('clears a pending deletion for a re-imported record', async () => {
     await saveVial(baseVial);
     const log = await logDose(baseLog);
-    const exported = await exportAllData();
+    const exported = await exportAllData('all');
     await deleteDoseLog(log.id);
 
     await importData(exported, 'Victor');

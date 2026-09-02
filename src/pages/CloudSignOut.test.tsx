@@ -35,6 +35,7 @@ vi.mock('../db/sync', () => ({
 }));
 
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('../context/ViewFilterContext', () => ({ useViewFilter: () => ({ filter: 'all', setFilter: () => {} }) }));
 
 const clickSignOut = async () => {
   await act(async () => {

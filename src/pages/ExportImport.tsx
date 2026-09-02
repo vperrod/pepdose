@@ -5,15 +5,17 @@ import { exportAllData, importData, clearAllData } from '../db/operations';
 import { getLastOwner } from '../data/users';
 import { supabase, cloudEnabled } from '../db/supabase';
 import { resetSyncCursor, syncNow } from '../db/sync';
+import { useViewFilter } from '../context/ViewFilterContext';
 
 export function ExportImport() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const { filter } = useViewFilter();
 
   const handleExport = async () => {
     try {
-      const json = await exportAllData();
+      const json = await exportAllData(filter);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -86,7 +88,7 @@ export function ExportImport() {
           </div>
           <div>
             <p className="font-semibold text-sm">Export Backup</p>
-            <p className="text-xs text-text-muted">Download all data as JSON</p>
+            <p className="text-xs text-text-muted">Download {filter === 'all' ? 'all data' : `${filter}'s data`} as JSON</p>
           </div>
         </button>
 
