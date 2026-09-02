@@ -5,7 +5,7 @@ import { ViewFilterProvider } from '../context/ViewFilterContext';
 import { VialInventory } from './VialInventory';
 import { computeRecon, doseToMg } from '../utils/reconMath';
 import { getPeptideById } from '../data/peptides';
-import type { Vial } from '../db/schema';
+import type { DoseLog, Vial } from '../db/schema';
 
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
 
@@ -14,7 +14,7 @@ const ops = vi.hoisted(() => ({
   saveVial: vi.fn(async () => 'v1'),
   updateVial: vi.fn(async () => undefined),
   getDoseLogsForPeptide: vi.fn(async () => []),
-  getAllDoseLogs: vi.fn(async () => []),
+  getAllDoseLogs: vi.fn(async () => [] as DoseLog[]),
 }));
 vi.mock('../db/operations', () => ops);
 
@@ -48,8 +48,8 @@ it("predicts a vial's empty date from its own owner's logs only", async () => {
     reconstitutionDate: '2026-08-01T00:00:00.000Z',
   } as Vial]);
   ops.getAllDoseLogs.mockResolvedValueOnce([
-    { peptideId: 'bpc-157', owner: 'Victor', date: '2026-08-30' },
-    { peptideId: 'bpc-157', owner: 'Nadia', date: '2026-08-31' },
+    { peptideId: 'bpc-157', owner: 'Victor', date: '2026-08-30' } as DoseLog,
+    { peptideId: 'bpc-157', owner: 'Nadia', date: '2026-08-31' } as DoseLog,
   ]);
   localStorage.setItem('pepdose-view-filter', 'Victor');
 
