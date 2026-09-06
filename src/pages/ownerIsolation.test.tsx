@@ -38,7 +38,7 @@ const ops = vi.hoisted(() => ({
   getDoseLogsForProtocol: vi.fn(async () => []),
   getDoseLogsForPeptide: vi.fn(async () => [] as DoseLog[]),
   getHealthMarkers: vi.fn(async () => [] as HealthMarker[]),
-  getAllDoseLogs: vi.fn(async () => []),
+  getAllDoseLogs: vi.fn(async () => [] as DoseLog[]),
   getDoseLogsSince: vi.fn(async () => [] as DoseLog[]),
   getVials: vi.fn(async () => [] as Vial[]),
   updateProtocol: vi.fn(async () => {}),
@@ -192,14 +192,14 @@ describe('viewing as Victor never shows Nadia data', () => {
 
   it('VialInventory: empty-date forecast ignores the other profile\'s dose history', async () => {
     ops.getVials.mockResolvedValue([vial('Victor')]);
-    ops.getDoseLogsForPeptide.mockResolvedValue([doseLogOn('Nadia', '2026-01-01'), doseLogOn('Nadia', '2026-01-04')]);
+    ops.getAllDoseLogs.mockResolvedValue([doseLogOn('Nadia', '2026-01-01'), doseLogOn('Nadia', '2026-01-04')]);
     await renderAsVictor(<VialInventory />);
     expect(screen.queryByText(/Est\. empty/)).toBeNull();
   });
 
   it('VialInventory: empty-date forecast still uses the active profile\'s dose history', async () => {
     ops.getVials.mockResolvedValue([vial('Victor')]);
-    ops.getDoseLogsForPeptide.mockResolvedValue([doseLogOn('Victor', '2026-01-01'), doseLogOn('Victor', '2026-01-04')]);
+    ops.getAllDoseLogs.mockResolvedValue([doseLogOn('Victor', '2026-01-01'), doseLogOn('Victor', '2026-01-04')]);
     await renderAsVictor(<VialInventory />);
     expect(screen.getByText(/Est\. empty/)).toBeTruthy();
   });
