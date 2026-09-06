@@ -110,12 +110,17 @@ export function ExportImport() {
               </div>
               <div>
                 <p className="font-semibold text-sm text-danger">Clear All Data</p>
-                <p className="text-xs text-text-muted">Permanently delete everything</p>
+                <p className="text-xs text-text-muted">{cloudEnabled ? 'Wipe this device only — the cloud copy syncs back' : 'Permanently delete everything'}</p>
               </div>
             </button>
           ) : (
             <div className="card-glass p-4 border border-danger/40 stagger-item">
-              <p className="text-sm font-semibold text-danger mb-3">Are you sure? This cannot be undone.</p>
+              {/* clearAllData never tombstones: with sync on, the next pass re-pulls every row. */}
+              <p className="text-sm font-semibold text-danger mb-3">
+                {cloudEnabled
+                  ? 'This only clears this device. Your data stays in the cloud and will sync back after reload — sign out above if you want to stop syncing.'
+                  : 'Are you sure? This cannot be undone.'}
+              </p>
               <div className="flex gap-2">
                 <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium">Cancel</button>
                 <button onClick={handleClear} className="flex-1 py-2.5 rounded-xl bg-danger text-white text-sm font-medium">Delete Everything</button>

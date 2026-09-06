@@ -9,6 +9,7 @@ const ops = vi.hoisted(() => ({
   importData: vi.fn(async () => {}),
   clearAllData: vi.fn(async () => {}),
 }));
+const cloud = vi.hoisted(() => ({ enabled: false }));
 
 vi.mock('../db/operations', () => ({
   exportAllData: async () => '{}',
@@ -16,9 +17,12 @@ vi.mock('../db/operations', () => ({
   clearAllData: ops.clearAllData,
 }));
 
-// Cloud sync off → CloudSyncCard is skipped, keeping these tests focused on the
-// data-loss paths.
-vi.mock('../db/supabase', () => ({ cloudEnabled: false, supabase: null }));
+// Cloud sync off by default → CloudSyncCard is skipped, keeping these tests
+// focused on the data-loss paths; the copy tests flip it on.
+vi.mock('../db/supabase', () => ({
+  get cloudEnabled() { return cloud.enabled; },
+  supabase: { auth: { getUser: async () => ({ data: { user: null } }) } },
+}));
 vi.mock('../db/sync', () => ({ resetSyncCursor: () => {}, syncNow: async () => null }));
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('../context/ViewFilterContext', () => ({ useViewFilter: () => ({ filter: 'all', setFilter: () => {} }) }));
@@ -38,6 +42,7 @@ beforeEach(() => {
   vi.useFakeTimers(); // freeze the post-action window.location.reload timer
   ops.importData.mockClear();
   ops.clearAllData.mockClear();
+  cloud.enabled = false;
   capturedInput = null;
   vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
     const el = realCreateElement(tag);
@@ -77,6 +82,21 @@ describe('ExportImport clear-all confirm flow', () => {
     await act(async () => { fireEvent.click(screen.getByText('Delete Everything')); });
     expect(ops.clearAllData).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/All data cleared/)).toBeTruthy();
+  });
+
+  it('tells the user the wipe is device-only when cloud sync is on', () => {
+    // clearAllData writes no tombstones, so the next sync pass pulls every
+    // row back — "cannot be undone" would be a lie here.
+    cloud.enabled = true;
+    render(<ExportImport />);
+    fireEvent.click(screen.getByText('Clear All Data'));
+    expect(screen.getByText(/only clears this device/)).toBeTruthy();
+  });
+
+  it('keeps the permanent-deletion warning when cloud sync is off', () => {
+    render(<ExportImport />);
+    fireEvent.click(screen.getByText('Clear All Data'));
+    expect(screen.getByText(/cannot be undone/)).toBeTruthy();
   });
 
   it('reports an error instead of claiming success when the wipe throws', async () => {
