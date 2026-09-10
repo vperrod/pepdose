@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil, Trash2 } from 'lucide-react';
+import { X, Check, Clock, MapPin, CalendarDays, SkipForward, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { logDose, updateScheduledDose, updateDoseLog, getDoseLogsSince, deleteDoseLog, getProtocol } from '../db/operations';
 import type { ScheduledDose, DoseLog, ReconMix } from '../db/schema';
 import { clicksForDose, formatClicks, penMlPerClick } from '../utils/penClicks';
@@ -45,6 +45,9 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [showDetails, setShowDetails] = useState(() =>
+    !!(log?.siteReaction || (log?.symptoms && log.symptoms.length > 0))
+  );
 
   // Pen clicks for this injection, tracking the dose actually typed. Loaded from
   // the protocol's own mix so every screen that opens this sheet gets it.
@@ -298,61 +301,83 @@ export function DoseActionSheet({ dose, log, onClose, onUpdated }: DoseActionShe
               </div>
 
               <div>
-                <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">Site reaction (optional)</label>
-                <div className="flex flex-wrap gap-2">
-                  {REACTIONS.map(r => (
-                    <button
-                      key={r}
-                      onClick={() => setReaction(reaction === r ? undefined : r)}
-                      className={`px-3 py-2 rounded-xl text-xs font-medium capitalize transition-colors ${
-                        reaction === r ? 'bg-warning/20 text-warning ring-1 ring-warning/40' : 'bg-card border border-border text-text-secondary'
-                      }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">
-                  How you're feeling (optional)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {symptomOptions.map(s => {
-                    const active = s.name in symptoms;
-                    return (
-                      <button
-                        key={s.name}
-                        onClick={() => toggleSymptom(s.name)}
-                        className={`px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
-                          active ? 'bg-primary/20 text-primary ring-1 ring-primary/40' : 'bg-card border border-border text-text-secondary'
-                        }`}
-                      >
-                        {s.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                {symptomsArray.length > 0 && (
-                  <div className="mt-3 space-y-2.5">
-                    {symptomsArray.map(s => (
-                      <div key={s.name} className="flex items-center gap-3">
-                        <span className="text-xs text-text-secondary w-32 shrink-0 truncate">{s.name}</span>
-                        <input
-                          type="range"
-                          min={1}
-                          max={10}
-                          value={s.severity}
-                          onChange={e => setSymptoms(prev => ({ ...prev, [s.name]: parseInt(e.target.value) }))}
-                          className="flex-1 accent-primary"
-                          aria-label={`${s.name} severity`}
-                        />
-                        <span className="text-xs font-mono w-6 text-right" style={{ color: s.severity >= 7 ? '#ef4444' : s.severity >= 4 ? '#f59e0b' : '#22c55e' }}>
-                          {s.severity}
-                        </span>
+                <button
+                  type="button"
+                  onClick={() => setShowDetails(v => !v)}
+                  className="w-full flex items-center justify-between text-left"
+                  aria-expanded={showDetails}
+                >
+                  <span className="block text-xs text-text-muted uppercase tracking-wider mb-2">
+                    Site reaction & how you're feeling (optional)
+                  </span>
+                  <ChevronDown
+                    className="w-4 h-4 text-text-muted transition-transform"
+                    style={{ transform: showDetails ? 'rotate(180deg)' : 'rotate(0)' }}
+                  />
+                </button>
+                {showDetails && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">Site reaction</label>
+                      <div className="flex flex-wrap gap-2">
+                        {REACTIONS.map(r => (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() => setReaction(reaction === r ? undefined : r)}
+                            className={`px-3 py-2 rounded-xl text-xs font-medium capitalize transition-colors ${
+                              reaction === r ? 'bg-warning/20 text-warning ring-1 ring-warning/40' : 'bg-card border border-border text-text-secondary'
+                            }`}
+                          >
+                            {r}
+                          </button>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-text-muted uppercase tracking-wider mb-2">
+                        How you're feeling
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {symptomOptions.map(s => {
+                          const active = s.name in symptoms;
+                          return (
+                            <button
+                              key={s.name}
+                              type="button"
+                              onClick={() => toggleSymptom(s.name)}
+                              className={`px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                                active ? 'bg-primary/20 text-primary ring-1 ring-primary/40' : 'bg-card border border-border text-text-secondary'
+                              }`}
+                            >
+                              {s.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {symptomsArray.length > 0 && (
+                        <div className="mt-3 space-y-2.5">
+                          {symptomsArray.map(s => (
+                            <div key={s.name} className="flex items-center gap-3">
+                              <span className="text-xs text-text-secondary w-32 shrink-0 truncate">{s.name}</span>
+                              <input
+                                type="range"
+                                min={1}
+                                max={10}
+                                value={s.severity}
+                                onChange={e => setSymptoms(prev => ({ ...prev, [s.name]: parseInt(e.target.value) }))}
+                                className="flex-1 accent-primary"
+                                aria-label={`${s.name} severity`}
+                              />
+                              <span className="text-xs font-mono w-6 text-right" style={{ color: s.severity >= 7 ? '#ef4444' : s.severity >= 4 ? '#f59e0b' : '#22c55e' }}>
+                                {s.severity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

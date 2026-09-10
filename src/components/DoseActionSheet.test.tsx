@@ -53,3 +53,38 @@ it('ignores the other profile\'s injections when computing site rest times', asy
   const { container } = await renderSheet();
   expect(container.querySelectorAll(`circle[fill="${RECENT_RED}"]`)).toHaveLength(0);
 });
+
+it('collapses the site reaction/symptom section by default when the log has neither', async () => {
+  const { getByRole, queryByText } = render(
+    <DoseActionSheet dose={dose} log={log} onClose={() => {}} onUpdated={() => {}} />,
+  );
+  await act(async () => {});
+  const toggle = getByRole('button', { name: /site reaction & how you're feeling/i });
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(queryByText('Site reaction')).toBeNull();
+});
+
+it('expands the site reaction/symptom section by default when the log already has a site reaction', async () => {
+  const { getByRole, getByText } = render(
+    <DoseActionSheet dose={dose} log={{ ...log, siteReaction: 'redness' }} onClose={() => {}} onUpdated={() => {}} />,
+  );
+  await act(async () => {});
+  const toggle = getByRole('button', { name: /site reaction & how you're feeling/i });
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(getByText('Site reaction')).toBeTruthy();
+});
+
+it('expands the site reaction/symptom section by default when the log already has logged symptoms', async () => {
+  const { getByRole, getByText } = render(
+    <DoseActionSheet
+      dose={dose}
+      log={{ ...log, symptoms: [{ name: 'Nausea', severity: 4 }] }}
+      onClose={() => {}}
+      onUpdated={() => {}}
+    />,
+  );
+  await act(async () => {});
+  const toggle = getByRole('button', { name: /site reaction & how you're feeling/i });
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(getByText('Site reaction')).toBeTruthy();
+});
