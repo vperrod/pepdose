@@ -200,7 +200,7 @@ export function HealthMarkers() {
       <header className="mb-5 stagger-item">
         <h1 className="text-2xl font-bold tracking-tight">Health Markers</h1>
         <p className="text-text-secondary text-sm mt-1">
-          {markers.length} entries logged
+          {visibleMarkers.length} entries logged
         </p>
       </header>
 

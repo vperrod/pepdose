@@ -230,6 +230,15 @@ describe('viewing as Victor never shows Nadia data', () => {
     expect(screen.getByText(/70 kg/)).toBeTruthy();
   });
 
+  it('HealthMarkers: header count excludes the other profile\'s entries', async () => {
+    ops.getHealthMarkers.mockResolvedValue([
+      { id: 'm1', date: TODAY, weight: 70, owner: 'Victor' } as HealthMarker,
+      { id: 'm2', date: TODAY, weight: 60, owner: 'Nadia' } as HealthMarker,
+    ]);
+    await renderAsVictor(<HealthMarkers />);
+    expect(screen.getByText('1 entries logged')).toBeTruthy();
+  });
+
   it('QuickLog: pending list ignores the other profile\'s doses', async () => {
     ops.getProtocols.mockResolvedValue([protocol({ id: 'p-Nadia', owner: 'Nadia' })]);
     ops.getScheduledDosesForDate.mockResolvedValue([upcoming('Nadia')]);
