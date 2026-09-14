@@ -7,6 +7,8 @@ import { supabase, cloudEnabled } from '../db/supabase';
 import { resetSyncCursor, syncNow } from '../db/sync';
 import { useViewFilter } from '../context/ViewFilterContext';
 
+const MAX_IMPORT_FILE_BYTES = 20 * 1024 * 1024; // 20MB — backups are JSON text, never legitimately larger
+
 export function ExportImport() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -36,6 +38,10 @@ export function ExportImport() {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
+      if (file.size > MAX_IMPORT_FILE_BYTES) {
+        setStatus({ type: 'error', msg: 'Backup file is too large (max 20MB)' });
+        return;
+      }
       try {
         const text = await file.text();
         const parsed = JSON.parse(text);

@@ -32,9 +32,9 @@ vi.mock('../context/ViewFilterContext', () => ({ useViewFilter: () => ({ filter:
 let capturedInput: HTMLInputElement | null = null;
 const realCreateElement = document.createElement.bind(document);
 
-const fireImport = async (fileText: string) => {
+const fireImport = async (fileText: string, size = fileText.length) => {
   await act(async () => {
-    capturedInput!.onchange!({ target: { files: [{ text: async () => fileText }] } } as unknown as Event);
+    capturedInput!.onchange!({ target: { files: [{ size, text: async () => fileText }] } } as unknown as Event);
   });
 };
 
@@ -131,5 +131,13 @@ describe('ExportImport import flow', () => {
     await fireImport(JSON.stringify({ version: 1 })); // no protocols
     expect(ops.importData).not.toHaveBeenCalled();
     expect(screen.getByText('Invalid backup file')).toBeTruthy();
+  });
+
+  it('rejects a file over the size cap without parsing it', async () => {
+    render(<ExportImport />);
+    fireEvent.click(screen.getByText('Import Backup'));
+    await fireImport(JSON.stringify({ version: 1, protocols: [] }), 21 * 1024 * 1024);
+    expect(ops.importData).not.toHaveBeenCalled();
+    expect(screen.getByText(/too large/)).toBeTruthy();
   });
 });
