@@ -174,6 +174,11 @@ function CloudSyncCard() {
     try {
       await clearAllData();
       resetSyncCursor();
+    } catch {
+      // Local wipe failing must not skip signOut below — otherwise the
+      // Supabase session outlives the reload and the device looks signed out.
+    }
+    try {
       await supabase!.auth.signOut();
     } finally {
       window.location.reload();

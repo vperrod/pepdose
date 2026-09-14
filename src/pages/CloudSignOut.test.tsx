@@ -90,4 +90,10 @@ describe('cloud sign-out data isolation', () => {
     await clickSignOut();
     expect(mocks.signOut).toHaveBeenCalled();
   });
+
+  it('still ends the Supabase session when the local wipe fails', async () => {
+    mocks.clearAllData.mockRejectedValue(new Error('IndexedDB error'));
+    await clickSignOut();
+    expect(mocks.signOut).toHaveBeenCalled();
+  });
 });
