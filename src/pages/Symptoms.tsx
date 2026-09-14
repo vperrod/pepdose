@@ -40,7 +40,7 @@ export function Symptoms() {
 
   const visibleLogs = applyOwnerFilter(logs);
   const trends = useMemo(() => symptomTrends(visibleLogs), [visibleLogs]);
-  const topNames = trends.slice(0, 6).map(t => t.name);
+  const topNames = useMemo(() => trends.slice(0, 6).map(t => t.name), [trends]);
   const colorFor = (name: string) => PALETTE[topNames.indexOf(name) % PALETTE.length];
 
   // Build date-keyed chart rows across the top symptoms.
