@@ -12,7 +12,7 @@ import type { HealthMarker } from '../db/schema';
 
 const ops = vi.hoisted(() => ({
   getHealthMarkers: vi.fn(async () => [] as HealthMarker[]),
-  saveHealthMarker: vi.fn(async (_marker: Omit<HealthMarker, 'id' | 'createdAt'>) => 'm1'),
+  saveHealthMarker: vi.fn<(marker: Omit<HealthMarker, 'id' | 'createdAt'>) => Promise<string>>(),
 }));
 
 vi.mock('../db/operations', () => ops);

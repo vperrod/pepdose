@@ -401,7 +401,10 @@ describe('P2 unsupported timezone handling', () => {
   it('falls back to naive local when Intl throws for an unsupported timezone', async () => {
     const Orig = (globalThis as any).Intl.DateTimeFormat;
     let threw = false;
-    (globalThis as any).Intl.DateTimeFormat = vi.fn(() => {
+    // Must be a `function`, not an arrow: vitest 5 refuses to `new` a mock whose
+    // implementation is not constructible, and the code under test calls
+    // `new Intl.DateTimeFormat(...)`.
+    (globalThis as any).Intl.DateTimeFormat = vi.fn(function () {
       threw = true;
       throw new Error('broken');
     });
@@ -413,7 +416,7 @@ describe('P2 unsupported timezone handling', () => {
 
   it('does not crash scheduleReminders when Intl throws for the timezone', async () => {
     const Orig = (globalThis as any).Intl.DateTimeFormat;
-    (globalThis as any).Intl.DateTimeFormat = vi.fn(() => { throw new Error('broken'); });
+    (globalThis as any).Intl.DateTimeFormat = vi.fn(function () { throw new Error('broken'); });
     const store = makeStore();
     stubBrowser('Asia/Kolkata', { store });
     await seedDose('d1', '08:00');
