@@ -51,10 +51,11 @@ export function Dashboard() {
 
   useEffect(() => {
     async function load() {
-      const [doses, protos, logs] = await Promise.all([
+      const protos = await getProtocols('active');
+      const [doses, logs, allDoses] = await Promise.all([
         getScheduledDosesForDate(today),
-        getProtocols('active'),
         getDoseLogsForDate(today),
+        getScheduledDosesForProtocols(protos.map(p => p.id)),
       ]);
 
       const activeIds = new Set(protos.map(p => p.id));
@@ -77,6 +78,7 @@ export function Dashboard() {
         logs.filter(l => l.scheduledDoseId).map(l => [l.scheduledDoseId!, l]),
       ));
       setAdhocLogs(logs.filter(l => !l.scheduledDoseId));
+      setAllScheduled(allDoses);
       setLoading(false);
 
       // Re-arm reminders whenever today's doses change (new log, edit, reload).
@@ -84,14 +86,6 @@ export function Dashboard() {
     }
     load();
   }, [today, reloadKey]);
-
-  useEffect(() => {
-    (async () => {
-      const active = await getProtocols('active');
-      const allDoses = await getScheduledDosesForProtocols(active.map(p => p.id));
-      setAllScheduled(allDoses);
-    })();
-  }, [reloadKey]);
 
   const applyOwnerFilter = useOwnerFilter();
   const adherence = useMemo(
