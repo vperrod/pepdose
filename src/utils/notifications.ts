@@ -3,6 +3,7 @@ import { getScheduledDosesForDate, getDoseLogsForDate } from '../db/operations';
 import { getPeptideById } from '../data/peptides';
 import { zonedTimeToUtc } from './tz';
 import { filterByOwner } from '../context/ownerFilter';
+import { readStoredSettings } from './storedSettings';
 
 const VIEW_FILTER_KEY = 'pepdose-view-filter';
 
@@ -31,25 +32,15 @@ interface AppSettings {
   timezone: string;
 }
 
-const SETTINGS_KEY = 'pepdose-settings';
 const FIRED_KEY = 'pepdose-fired-reminders';
 
 function readSettings(): AppSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return {
-      notificationsEnabled: !!parsed.notificationsEnabled,
-      reminderMinutesBefore: Number.isFinite(parsed.reminderMinutesBefore) ? parsed.reminderMinutesBefore : 15,
-      timezone: parsed.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC'),
-    };
-  } catch {
-    return {
-      notificationsEnabled: false,
-      reminderMinutesBefore: 15,
-      timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC',
-    };
-  }
+  const parsed = readStoredSettings();
+  return {
+    notificationsEnabled: !!parsed.notificationsEnabled,
+    reminderMinutesBefore: typeof parsed.reminderMinutesBefore === 'number' && Number.isFinite(parsed.reminderMinutesBefore) ? parsed.reminderMinutesBefore : 15,
+    timezone: typeof parsed.timezone === 'string' && parsed.timezone ? parsed.timezone : (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC'),
+  };
 }
 
 export function notificationsSupported(): boolean {

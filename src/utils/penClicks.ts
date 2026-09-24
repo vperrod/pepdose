@@ -3,6 +3,7 @@
 // answers "how much water should I add" — this answers "what do I dial today".
 import type { Peptide } from '../data/peptides';
 import type { ReconMix } from '../db/schema';
+import { readStoredSettings } from './storedSettings';
 
 /** Most peptide pens dial 1 insulin unit (0.01 ml) per click; some do 0.005/0.02. */
 export const DEFAULT_ML_PER_CLICK = 0.01;
@@ -15,13 +16,8 @@ export interface ClickDose {
 }
 
 export function penMlPerClick(): number {
-  try {
-    const raw = localStorage.getItem('pepdose-settings');
-    const v = raw ? parseFloat(JSON.parse(raw).penMlPerClick) : NaN;
-    return v > 0 ? v : DEFAULT_ML_PER_CLICK;
-  } catch {
-    return DEFAULT_ML_PER_CLICK;
-  }
+  const v = parseFloat(String(readStoredSettings().penMlPerClick));
+  return v > 0 ? v : DEFAULT_ML_PER_CLICK;
 }
 
 /** Pre-fill for a new protocol: the peptide's own typical vial + water.

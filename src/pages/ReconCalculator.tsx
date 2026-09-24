@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { Calculator, Droplets, ChevronDown } from 'lucide-react';
 import { PEPTIDES } from '../data/peptides';
 import { mgToIu } from '../utils/iuConvert';
+import { readStoredSettings } from '../utils/storedSettings';
 import { DisclaimerFooter } from '../components/DisclaimerFooter';
 import {
   blendBreakdown,
@@ -21,10 +22,7 @@ const UNIT_PRESETS = [10, 20, 50];
 
 // Units per mL depends on the syringe: U-100 = 100 units/mL, U-40 = 40 (Settings).
 function unitsPerMl(): number {
-  try {
-    const raw = localStorage.getItem('pepdose-settings');
-    return raw && JSON.parse(raw).syringeType === 'u40' ? 40 : 100;
-  } catch { return 100; }
+  return readStoredSettings().syringeType === 'u40' ? 40 : 100;
 }
 
 export function ReconCalculator() {

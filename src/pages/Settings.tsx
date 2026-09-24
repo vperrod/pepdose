@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Bell, Moon, Ruler, Clock, Syringe } from 'lucide-react';
 import { DEFAULT_ML_PER_CLICK } from '../utils/penClicks';
+import { readStoredSettings } from '../utils/storedSettings';
 import { requestNotificationPermission, scheduleReminders, showTestNotification, notificationsSupported, triggeredNotificationsSupported } from '../utils/notifications';
 
 interface AppSettings {
@@ -28,10 +29,7 @@ const DEFAULTS: AppSettings = {
 };
 
 function loadSettings(): AppSettings {
-  try {
-    const raw = localStorage.getItem('pepdose-settings');
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : DEFAULTS;
-  } catch { return DEFAULTS; }
+  return { ...DEFAULTS, ...readStoredSettings() };
 }
 
 function persistSettings(s: AppSettings) {
