@@ -455,7 +455,7 @@ describe('syncNow', () => {
       {
         kind: 'protocols',
         id: 'p1',
-        data: { id: 'p1', updatedAt: '2024-01-01T00:00:00Z' },
+        data: { id: 'p1', name: 'P', startDate: '2024-01-01', updatedAt: '2024-01-01T00:00:00Z' } as never,
         updated_at: '2024-01-01T00:00:00Z',
         deleted: false,
       },
@@ -465,6 +465,21 @@ describe('syncNow', () => {
     expect(result?.pulled).toBe(1);
     const db = await getDB();
     expect(await db.get('protocols', 'p1')).toBeTruthy();
+  });
+
+  it('a malformed cloud row is not written to IndexedDB', async () => {
+    cloud.remote = [
+      {
+        kind: 'protocols',
+        id: 'bad',
+        data: { id: 'bad', name: 42 } as never,
+        updated_at: '2024-01-01T00:00:00Z',
+        deleted: false,
+      },
+    ];
+    await syncNow();
+    const db = await getDB();
+    expect(await db.get('protocols', 'bad')).toBeUndefined();
   });
 
   it('a local delete pushes a ledger tombstone and prunes the ledger', async () => {

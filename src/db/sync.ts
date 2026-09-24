@@ -1,4 +1,5 @@
 import { getDB, type DeletionRecord } from './schema';
+import { validateRecord } from './operations';
 import { supabase, cloudEnabled } from './supabase';
 
 // Cloud sync: bidirectional union-merge between local IndexedDB and Supabase.
@@ -324,6 +325,8 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
         return current != null && rowTs(current) > (plan.localTs.get(id) ?? -1);
       };
       for (const row of plan.localPut) {
+        // Cloud jsonb is untrusted: a malformed row must not reach IndexedDB.
+        try { validateRecord(kind, row); } catch { continue; }
         if (await editedSince(row.id)) continue;
         await store.put(row);
         pulled++;

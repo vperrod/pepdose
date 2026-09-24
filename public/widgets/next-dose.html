@@ -74,7 +74,7 @@
       if (!d) { el.innerHTML = '<div class="none">No upcoming doses</div>'; return; }
       el.innerHTML =
         '<div class="pep">' + esc(d.peptideId || 'Dose') + '</div>' +
-        '<div class="meta">' + esc(d.dose) + ' ' + esc(d.unit) + ' · ' + fmt(d) + '</div>';
+        '<div class="meta">' + esc(d.dose) + ' ' + esc(d.unit) + ' · ' + esc(fmt(d)) + '</div>';
     }).catch(() => {
       document.getElementById('content').innerHTML = '<div class="none">Unavailable</div>';
     });

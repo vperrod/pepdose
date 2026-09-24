@@ -389,6 +389,44 @@ function assertNumericFields(rec: Record<string, unknown>, fields: string[], lab
   }
 }
 
+/** Shape check for one record of a store; throws on a malformed row. Shared by
+ *  backup import and cloud pull so both entry points enforce the same rules. */
+export function validateRecord(storeName: (typeof IMPORT_STORES)[number], item: unknown): void {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+    throw new Error(`${storeName} contains a non-object entry`);
+  }
+  const rec = item as Record<string, unknown>;
+  for (const field of ['id', ...IMPORT_REQUIRED[storeName]]) {
+    if (typeof rec[field] !== 'string' || rec[field] === '') {
+      throw new Error(`${storeName} entry missing required field: ${field}`);
+    }
+  }
+  assertNumericFields(rec, IMPORT_NUMERIC[storeName], storeName);
+  if (rec.owner !== undefined && !USERS.includes(rec.owner as UserName)) {
+    throw new Error(`${storeName} entry has unknown owner: ${rec.owner}`);
+  }
+  // Nested numeric fields the top-level table can't reach: a protocol's
+  // per-peptide dose configs (feed pen clicks / schedule math) and a dose
+  // log's symptom severities (feed the symptom-trend charts).
+  if (storeName === 'protocols' && Array.isArray(rec.doses)) {
+    for (const d of rec.doses) {
+      if (typeof d !== 'object' || d === null) continue;
+      const cfg = d as Record<string, unknown>;
+      assertNumericFields(cfg, ['dose', 'timesPerDay', 'durationWeeks', 'customFrequencyDays'], 'protocols doses');
+      if (typeof cfg.recon === 'object' && cfg.recon !== null) {
+        assertNumericFields(cfg.recon as Record<string, unknown>, ['vialAmount', 'bacWaterMl'], 'protocols doses recon');
+      }
+    }
+  }
+  if (storeName === 'doseLogs' && Array.isArray(rec.symptoms)) {
+    for (const s of rec.symptoms) {
+      if (typeof s !== 'object' || s === null) continue;
+      assertNumericFields(s as Record<string, unknown>, ['severity'], 'doseLogs symptoms');
+    }
+  }
+
+}
+
 /** Validates a parsed backup's shape. Throws (before any write) on anything
  *  that isn't a pepdose export, so a bad file can't corrupt existing state. */
 export function validateImport(data: unknown): asserts data is Record<string, unknown> {
@@ -400,40 +438,7 @@ export function validateImport(data: unknown): asserts data is Record<string, un
     const rows = obj[storeName];
     if (rows === undefined) continue;
     if (!Array.isArray(rows)) throw new Error(`${storeName} must be an array`);
-    for (const item of rows) {
-      if (typeof item !== 'object' || item === null || Array.isArray(item)) {
-        throw new Error(`${storeName} contains a non-object entry`);
-      }
-      const rec = item as Record<string, unknown>;
-      for (const field of ['id', ...IMPORT_REQUIRED[storeName]]) {
-        if (typeof rec[field] !== 'string' || rec[field] === '') {
-          throw new Error(`${storeName} entry missing required field: ${field}`);
-        }
-      }
-      assertNumericFields(rec, IMPORT_NUMERIC[storeName], storeName);
-      if (rec.owner !== undefined && !USERS.includes(rec.owner as UserName)) {
-        throw new Error(`${storeName} entry has unknown owner: ${rec.owner}`);
-      }
-      // Nested numeric fields the top-level table can't reach: a protocol's
-      // per-peptide dose configs (feed pen clicks / schedule math) and a dose
-      // log's symptom severities (feed the symptom-trend charts).
-      if (storeName === 'protocols' && Array.isArray(rec.doses)) {
-        for (const d of rec.doses) {
-          if (typeof d !== 'object' || d === null) continue;
-          const cfg = d as Record<string, unknown>;
-          assertNumericFields(cfg, ['dose', 'timesPerDay', 'durationWeeks', 'customFrequencyDays'], 'protocols doses');
-          if (typeof cfg.recon === 'object' && cfg.recon !== null) {
-            assertNumericFields(cfg.recon as Record<string, unknown>, ['vialAmount', 'bacWaterMl'], 'protocols doses recon');
-          }
-        }
-      }
-      if (storeName === 'doseLogs' && Array.isArray(rec.symptoms)) {
-        for (const s of rec.symptoms) {
-          if (typeof s !== 'object' || s === null) continue;
-          assertNumericFields(s as Record<string, unknown>, ['severity'], 'doseLogs symptoms');
-        }
-      }
-    }
+    for (const item of rows) validateRecord(storeName, item);
   }
 }
 
