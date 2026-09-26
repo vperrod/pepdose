@@ -215,15 +215,21 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
     await Promise.all(
       KINDS.map(async (kind) => {
         try {
-          let query = sb
-            .from('records')
-            .select('id,data,updated_at,deleted')
-            .eq('kind', kind);
-          if (delta !== null) query = query.gt('updated_at', new Date(delta).toISOString());
-          const { data: remoteRows, error } = await query;
-          if (error) throw error;
-
-          const remote = (remoteRows ?? []) as RemoteRow[];
+          // PostgREST caps a response at 1000 rows; a truncated pull would look
+          // like "absent remotely" to the merge. Page in a stable id order.
+          const PAGE = 1000;
+          const remote: RemoteRow[] = [];
+          for (let from = 0; ; from += PAGE) {
+            let query = sb
+              .from('records')
+              .select('id,data,updated_at,deleted')
+              .eq('kind', kind);
+            if (delta !== null) query = query.gt('updated_at', new Date(delta).toISOString());
+            const { data: page, error } = await query.order('id').range(from, from + PAGE - 1);
+            if (error) throw error;
+            remote.push(...((page ?? []) as RemoteRow[]));
+            if ((page?.length ?? 0) < PAGE) break;
+          }
           const remoteIds = new Set(remote.map((r) => r.id));
 
           let localRows: Timestamped[];

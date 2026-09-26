@@ -41,21 +41,23 @@ vi.mock('./supabase', () => ({
     from: () => ({
       select: () => ({
         eq: (_col: string, kind: string) => {
-          const run = (since: string | null) => {
+          const run = (since: string | null, from = 0, to = Infinity) => {
             cloud.queriedSince.push(since);
             if (cloud.failKinds.has(kind)) return { data: null, error: new Error(`${kind} boom`) };
-            const remoteRows = cloud.remote.filter(
-              (r) => r.kind === kind && (!since || r.updated_at > since),
-            );
+            const remoteRows = cloud.remote
+              .filter((r) => r.kind === kind && (!since || r.updated_at > since))
+              .slice(from, to + 1);
             return { data: remoteRows, error: null };
           };
-          return {
-            gt: async (_c: string, since: string) => {
-              if (cloud.delayKinds.has(kind)) await new Promise((r) => setTimeout(r, 20));
-              return run(since);
-            },
-            then: (resolve: (v: unknown) => unknown) => resolve(run(null)),
-          };
+          const paged = (since: string | null) => ({
+            order: () => ({
+              range: async (from: number, to: number) => {
+                if (since && cloud.delayKinds.has(kind)) await new Promise((r) => setTimeout(r, 20));
+                return run(since, from, to);
+              },
+            }),
+          });
+          return { gt: (_c: string, since: string) => paged(since), ...paged(null) };
         },
       }),
       upsert: async (rows: Envelope[]) => {
