@@ -153,6 +153,8 @@ export async function suspendSync(): Promise<() => void> {
 // remote edit/tombstone still meets its local counterpart in planMerge. An
 // offline peer can upload rows stamped older than the cursor; a periodic full
 // pass (FULL_SYNC_EVERY_MS) bounds how long such rows stay unseen.
+// Keeps each upsert request body small enough for mobile connections and request-size limits.
+const UPSERT_CHUNK = 200;
 const CLOCK_SKEW_MS = 5 * 60_000;
 const FULL_SYNC_EVERY_MS = 60 * 60_000;
 let cursor: { userId: string; since: number; lastFull: number } | null = null;
@@ -286,8 +288,10 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
           updated_at: new Date(Math.min(rowTs(row) || Date.now(), Date.now())).toISOString(),
           deleted: false,
         }));
-        const { error: upErr } = await supabase.from('records').upsert(envelopes);
-        if (upErr) throw upErr;
+        for (let i = 0; i < envelopes.length; i += UPSERT_CHUNK) {
+          const { error: upErr } = await supabase.from('records').upsert(envelopes.slice(i, i + UPSERT_CHUNK));
+          if (upErr) throw upErr;
+        }
         pushed += plan.push.length;
       }
       const ledgerDone = [...plan.ledgerResolved];
@@ -300,8 +304,10 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
           updated_at: d.deletedAt,
           deleted: true,
         }));
-        const { error: delErr } = await supabase.from('records').upsert(tombstones);
-        if (delErr) throw delErr;
+        for (let i = 0; i < tombstones.length; i += UPSERT_CHUNK) {
+          const { error: delErr } = await supabase.from('records').upsert(tombstones.slice(i, i + UPSERT_CHUNK));
+          if (delErr) throw delErr;
+        }
         pushed += plan.pushTombstone.length;
         ledgerDone.push(...plan.pushTombstone.map((d) => d.id));
       }
