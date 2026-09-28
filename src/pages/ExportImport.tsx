@@ -213,6 +213,10 @@ function CloudSyncCard() {
         <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> {syncing ? 'Syncing…' : 'Sync now'}
       </button>
       {msg && <p className="text-xs text-text-muted mt-2 text-center">{msg}</p>}
+      <p className="text-xs text-text-muted mt-2">
+        Deletes on this device may not yet remove the item on your other devices — see
+        CLOUD_SYNC_SETUP.md if a deleted row reappears after syncing.
+      </p>
     </div>
   );
 }

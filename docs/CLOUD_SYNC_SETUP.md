@@ -61,3 +61,7 @@ Only needed if you ever recreate the Supabase project.
 - `supabase/migrations/0001_init.sql` — generic `records` table (jsonb payload) + RLS policies.
 - `supabase/migrations/0002_reject_extra_signups.sql` — `auth.users` trigger rejecting every
   signup after the first account (server-side enforcement of the single shared account).
+
+**Known limitation:** security rests on one shared password, not two accounts — if it leaks,
+both people's data is exposed with no per-user recovery path. Rotate the shared password
+periodically; moving to per-user auth is a future option, not currently planned.

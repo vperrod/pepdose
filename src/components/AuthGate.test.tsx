@@ -123,6 +123,28 @@ describe('AuthGate', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
+  it('syncs again when the window regains focus', async () => {
+    state.session = { user: { id: 'u1' } };
+    render(<AuthGate><p>app</p></AuthGate>);
+    await flush();
+    expect(state.syncCalls).toBe(1);
+    await act(async () => { fireEvent(window, new Event('focus')); });
+    expect(state.syncCalls).toBe(2);
+  });
+
+  it('syncs when the tab is hidden, not when it becomes visible', async () => {
+    state.session = { user: { id: 'u1' } };
+    render(<AuthGate><p>app</p></AuthGate>);
+    await flush();
+    expect(state.syncCalls).toBe(1);
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(state.syncCalls).toBe(2);
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(state.syncCalls).toBe(2); // becoming visible again does not re-trigger
+  });
+
   describe('focus and unload cleanup', () => {
     it('keeps syncing on the 30s interval and stops after unmount', async () => {
       vi.useFakeTimers();
