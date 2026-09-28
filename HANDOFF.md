@@ -75,8 +75,18 @@ Clear all data.
 
 ## Deploying
 
-Push to `main` → `.github/workflows/deploy.yml` builds and publishes to GitHub
-Pages. No other environments. The Vite `base` is `/pepdose/` to match the Pages path.
+**Merging to `main` does NOT deploy.** `.github/workflows/deploy.yml` is dead
+(GitHub Actions disabled account-wide, ticket 4583559). Deploy is manual:
+
+1. Merge/pull the PR into `main`.
+2. Run `scripts/deploy.sh` (builds, tests, rsyncs `dist/` to the claude-dev VM's
+   Caddy root). It appends a row to `docs/DEPLOY_LOG.md` automatically.
+3. Verify the change live at
+   https://claude-dev-vperrod.westeurope.cloudapp.azure.com/pepdose/ — a merged
+   PR is not live until this step is done.
+
+The Vite `base` stays `/pepdose/` so moving back to GitHub Pages (once the
+account is unblocked) needs no rebuild.
 
 ## Remaining roadmap (with pointers)
 
@@ -145,8 +155,9 @@ blobs), lab/bloodwork tracking with reference ranges, cycle/washout planner.
   `npm run preview` build with Playwright, seeding IndexedDB via `page.evaluate`
   (open `indexedDB.open('pepdose', 2)` and `put` records) then asserting on render.
   Handy for charts/forms that need data.
-- **Git workflow:** work on a branch, open a PR, merge to `main` to deploy. Commit or
-  push only what you intend to ship.
+- **Git workflow:** work on a branch, open a PR, merge to `main`, then run
+  `scripts/deploy.sh` — merging alone does not deploy (see Deploying above).
+  Commit or push only what you intend to ship.
 
 ## Key files map
 

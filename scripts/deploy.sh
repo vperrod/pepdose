@@ -58,8 +58,16 @@ fi
 echo "==> deploy to $TARGET"
 sudo /usr/bin/rsync -a --delete --chown=caddy:caddy dist/ "$TARGET/"
 
+DEPLOY_LOG="docs/DEPLOY_LOG.md"
+[[ -r "$DEPLOY_LOG" ]] || printf '# Deploy log\n\n| UTC time | Commit | Deployed by |\n|---|---|---|\n' > "$DEPLOY_LOG"
+printf '| %s | %s | %s |\n' \
+  "$(date -u +'%Y-%m-%d %H:%M:%S')" \
+  "$(git rev-parse --short HEAD)" \
+  "$(git config user.name || whoami)" >> "$DEPLOY_LOG"
+
 echo
 echo "Deployed: https://claude-dev-vperrod.westeurope.cloudapp.azure.com/pepdose/"
+echo "Logged to $DEPLOY_LOG — verify the change is live at that URL before moving on."
 if [[ -n "$SW_WARN" ]]; then
   echo "WARNING: public/sw.js changed but CACHE_NAME did not — installed clients" >&2
   echo "         will keep the old service worker/shell. Bump CACHE_NAME and redeploy." >&2
