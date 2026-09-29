@@ -32,6 +32,11 @@ const cloud = vi.hoisted(() => ({
   failKinds: new Set<string>(),
   queriedSince: [] as (string | null)[],
   delayKinds: new Set<string>(),
+  // Deterministic gate: when set, a kind in gateKinds awaits this promise before
+  // its remote fetch resolves, so a test can hold the network I/O open until it
+  // has performed a local write.
+  gateKinds: new Set<string>(),
+  gate: null as Promise<void> | null,
 }));
 
 vi.mock('./supabase', () => ({
@@ -52,6 +57,7 @@ vi.mock('./supabase', () => ({
           const paged = (since: string | null) => ({
             order: () => ({
               range: async (from: number, to: number) => {
+                if (cloud.gateKinds.has(kind) && cloud.gate) await cloud.gate;
                 if (since && cloud.delayKinds.has(kind)) await new Promise((r) => setTimeout(r, 20));
                 return run(since, from, to);
               },
@@ -450,6 +456,8 @@ describe('syncNow', () => {
     cloud.upserted = [];
     cloud.failKinds = new Set();
     cloud.queriedSince = [];
+    cloud.gateKinds = new Set();
+    cloud.gate = null;
   });
 
   it('a fresh device first pull copies cloud rows locally and tombstones nothing', async () => {
@@ -750,6 +758,42 @@ describe('syncNow', () => {
     await db.put('protocols', { id: 'p1', updatedAt: edited } as never);
     await background;
     cloud.delayKinds = new Set();
+
+    expect((await db.get('protocols', 'p1'))?.updatedAt).toBe(edited);
+  });
+
+  it('a local edit landing mid-sync is not clobbered once the gated remote fetch resolves', async () => {
+    const ts = '2024-01-01T00:00:00Z';
+    cloud.remote = [
+      {
+        kind: 'protocols',
+        id: 'p1',
+        data: { id: 'p1', updatedAt: ts },
+        updated_at: ts,
+        deleted: false,
+      },
+    ];
+    await syncNow(); // first full pass pulls p1 into local
+    const stale = new Date(Date.now() - 1_000).toISOString();
+    cloud.remote[0].data.updatedAt = stale;
+    cloud.remote[0].updated_at = stale;
+
+    // Gate a different kind's remote fetch on a promise the test controls, so the
+    // protocols plan is computed against the pre-edit snapshot and phase 3 (the
+    // local write) runs only after the local edit lands.
+    let release!: () => void;
+    cloud.gate = new Promise<void>((r) => { release = r; });
+    cloud.gateKinds = new Set(['doseLogs']);
+
+    const background = syncNow();
+    await new Promise((r) => setTimeout(r, 5)); // let the pass snapshot local protocols
+    const edited = new Date().toISOString();
+    const db = await getDB();
+    await db.put('protocols', { id: 'p1', updatedAt: edited } as never);
+    release(); // the remote fetch resolves only now, after the local write
+    await background;
+    cloud.gate = null;
+    cloud.gateKinds = new Set();
 
     expect((await db.get('protocols', 'p1'))?.updatedAt).toBe(edited);
   });
