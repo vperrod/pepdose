@@ -18,6 +18,7 @@ import { PenColorField } from '../components/PenColorField';
 import { WeekdayPicker } from '../components/WeekdayPicker';
 import { getLastOwner, setLastOwner, type UserName } from '../data/users';
 import { defaultRecon } from '../utils/penClicks';
+import { estimateTotalDoses } from '../utils/doseEstimate';
 import type { ReconMix } from '../db/schema';
 
 type Step = 'select' | 'configure' | 'review';
@@ -278,28 +279,7 @@ export function NewProtocol() {
     }
   }
 
-  const totalDoses = useMemo(() => {
-    if (peptideConfigs.length === 0) return 0;
-    const PER_WEEK: Record<string, number> = { daily: 7, '5x_week': 5, eod: 3.5, weekly: 1, biweekly: 0.5, custom: 7 };
-    const perWeekForPhase = (p: SchedulePhase) =>
-      p.frequency === 'weekly_days' ? (p.daysOfWeek?.length ?? 0) : (PER_WEEK[p.frequency] ?? 7);
-    return peptideConfigs.reduce((sum, config) => {
-      if (config.schedulePhases?.length) {
-        return sum + Math.round(config.schedulePhases.reduce(
-          (s, p) => s + (p.weekEnd - p.weekStart + 1) * perWeekForPhase(p), 0));
-      }
-      const weeks = config.durationWeeks ?? durationWeeks;
-      const daysInCycle = weeks * 7;
-      switch (config.frequency) {
-        case 'daily': return sum + daysInCycle * config.timesPerDay;
-        case 'eod': return sum + Math.ceil(daysInCycle / 2);
-        case 'weekly': return sum + weeks;
-        case 'biweekly': return sum + Math.ceil(weeks / 2);
-        case 'weekly_days': return sum + weeks * (config.daysOfWeek?.length ?? 0);
-        default: return sum + daysInCycle;
-      }
-    }, 0);
-  }, [peptideConfigs, durationWeeks]);
+  const totalDoses = useMemo(() => estimateTotalDoses(peptideConfigs, durationWeeks), [peptideConfigs, durationWeeks]);
 
   const endDate = useMemo(() => {
     return format(addWeeks(new Date(startDate), durationWeeks), 'MMM d, yyyy');
