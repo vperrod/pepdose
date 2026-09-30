@@ -44,6 +44,10 @@ Only needed if you ever recreate the Supabase project.
 3. **Keys**: Project Settings → API. Use the **publishable** key (`sb_publishable_…`) or the
    legacy `anon` JWT for the frontend — **never the `sb_secret_` / service-role key** (it
    bypasses RLS and would ship in the public bundle).
+   The publishable/anon key is inlined into `dist/` at build time, so treat it as public: it is
+   safe only because the sole table (`records`) has RLS with `auth.uid() = user_id` policies, so
+   a caller without the shared login sees nothing. Keep RLS enabled on every table you add to
+   `public`, and don't expose more tables/columns to the API than sync needs.
 4. **Local dev**: create `.env.local` (gitignored):
    ```
    VITE_SUPABASE_URL=https://<ref>.supabase.co
