@@ -199,6 +199,10 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
   Pages path (`.github/workflows/deploy.yml`) is DEAD while the account block
   holds (Actions disabled account-wide, ticket 4583559); Vite `base` stays
   `/pepdose/` so moving back needs no rebuild.
+  **After merging/pushing to `main`, run `scripts/deploy.sh` in the same sitting.**
+  Each deploy appends a row (UTC time, commit) to `docs/DEPLOY_LOG.md`; to see
+  whether `main` is live, compare its last row with `git log --oneline -1`
+  (`git log <deployed-sha>..HEAD` lists what is still undeployed).
 
 ## Conventions
 
