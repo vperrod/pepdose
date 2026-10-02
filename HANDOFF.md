@@ -9,7 +9,7 @@ the merge of PR #1 (features) and PR #3 (docs) into `main`.
 Volume` setting), day views hide upcoming doses of paused/finished protocols, a
 duplicate-protocol cleanup card, and the fix for the duplicated calendar entries —
 sync was resurrecting deleted doses because `rowTs` timed them by their injection
-date. `repairDuplicateScheduledDoses()` clears schedules already duplicated. 317
+date. `repairDuplicateScheduledDoses()` clears schedules already duplicated. 500
 tests pass; confirmed fixed by Victor on his own data.
 
 All of the following is merged to `main` and deployed at
@@ -47,7 +47,7 @@ All of the following is merged to `main` and deployed at
   DAC, Sermorelin, Tesamorelin, Semax, Selank).
 - **Ad-hoc dose logging**, plus assorted review fixes.
 
-Tests: `45 passing`. Build + typecheck clean.
+Tests: `500 passing`. Build + typecheck clean.
 
 ## Run it locally
 
