@@ -215,6 +215,9 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
   whenever a cadence should be "N times per week" — `custom` drifts against
   calendar weeks unless N evenly divides 7 (see `scheduleEngine.test.ts`'s
   `weekly_days`/NAD+ regression tests for the drift this caused in practice).
+- Any new `upgrade` block in `db/schema.ts` gets a case in `db/schema.migration.test.ts`
+  (seeds an old-version DB, reopens at the new version; the v1→v2 owner backfill to
+  `Victor` is the template) — a broken backfill silently puts data on the wrong owner.
 - New analytics logic goes in a **pure `utils/*.ts` helper with a `.test.ts`**, kept
   out of the component (see activeLevels/symptomTrends/adherence).
 - Numeric inputs use the string-backed `components/DecimalInput.tsx` (a raw
