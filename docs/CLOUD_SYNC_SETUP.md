@@ -69,3 +69,10 @@ Only needed if you ever recreate the Supabase project.
 **Known limitation:** security rests on one shared password, not two accounts — if it leaks,
 both people's data is exposed with no per-user recovery path. Rotate the shared password
 periodically; moving to per-user auth is a future option, not currently planned.
+
+**Victor/Nadia isolation is client-side only.** Both profiles share one login, so `auth.uid()`
+is identical and RLS cannot tell them apart; `0002` only caps account creation, not row access.
+Anyone holding the shared login (or the anon key plus that login) can read both profiles' rows
+via the API. Isolation is the `owner` field, enforced in `src/context/ownerFilter.ts` and
+guarded by `src/db/ownerFilterWiring.test.ts`. A DB-level fix needs one login per profile plus a
+`user_id` backfill from `data->>'owner'` — a data-model change, not a patch.
