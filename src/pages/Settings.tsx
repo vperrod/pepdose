@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Bell, Moon, Ruler, Clock, Syringe } from 'lucide-react';
+import { ArrowLeft, Bell, Moon, Clock, Syringe } from 'lucide-react';
 import { DEFAULT_ML_PER_CLICK } from '../utils/penClicks';
 import { readStoredSettings } from '../utils/storedSettings';
 import { requestNotificationPermission, scheduleReminders, showTestNotification, notificationsSupported, triggeredNotificationsSupported } from '../utils/notifications';
@@ -8,11 +8,9 @@ import { requestNotificationPermission, scheduleReminders, showTestNotification,
 interface AppSettings {
   notificationsEnabled: boolean;
   reminderMinutesBefore: number;
-  unitSystem: 'metric' | 'imperial';
   syringeType: 'u100' | 'u40';
   /** ml delivered per pen click — pens vary; see utils/penClicks.ts */
   penMlPerClick: number;
-  darkMode: boolean;
   defaultInjectionTime: string;
   timezone: string;
 }
@@ -20,10 +18,8 @@ interface AppSettings {
 const DEFAULTS: AppSettings = {
   notificationsEnabled: false,
   reminderMinutesBefore: 15,
-  unitSystem: 'metric',
   syringeType: 'u100',
   penMlPerClick: DEFAULT_ML_PER_CLICK,
-  darkMode: true,
   defaultInjectionTime: '08:00',
   timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC',
 };
@@ -156,30 +152,6 @@ export function Settings() {
               onChange={e => update('defaultInjectionTime', e.target.value)}
               className="bg-bg border border-border rounded-lg px-2 py-1.5 text-sm"
             />
-          </div>
-        </div>
-
-        {/* Units */}
-        <div className="card-glass p-4 stagger-item" style={{ animationDelay: '0.15s' }}>
-          <div className="flex items-center gap-3">
-            <Ruler className="w-5 h-5 text-warning" />
-            <div className="flex-1">
-              <p className="font-medium text-sm">Units</p>
-            </div>
-            <div className="flex bg-bg rounded-lg border border-border overflow-hidden">
-              <button
-                onClick={() => update('unitSystem', 'metric')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${settings.unitSystem === 'metric' ? 'bg-primary text-bg' : 'text-text-muted'}`}
-              >
-                Metric
-              </button>
-              <button
-                onClick={() => update('unitSystem', 'imperial')}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${settings.unitSystem === 'imperial' ? 'bg-primary text-bg' : 'text-text-muted'}`}
-              >
-                Imperial
-              </button>
-            </div>
           </div>
         </div>
 

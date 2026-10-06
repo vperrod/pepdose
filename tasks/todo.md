@@ -82,6 +82,6 @@ delete the cloud copy.
 
 - [ ] `.ics` calendar export of upcoming doses (S, local-first)
 - [ ] Doctor-ready PDF / printable report (M, local-first)
-- [ ] Wire or remove the remaining dead settings: `unitSystem`, `darkMode` (S)
+- [x] Wire or remove the remaining dead settings: `unitSystem`, `darkMode` (S)
 - [ ] NewProtocol "custom interval" total-dose estimate (use `daysInCycle / customFrequencyDays`) (S)
 - [ ] Reliable push-when-closed reminders — **needs a backend / Web Push** (deliberate decision)

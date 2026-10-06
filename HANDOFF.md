@@ -109,12 +109,9 @@ severities, health-marker trends, labs.
   getHealthMarkers) and reuse `utils/adherence.ts` + `utils/symptomTrends.ts`.
 - Respect the two-user filter (per-user report).
 
-### 3. Wire or remove the remaining dead settings — **S**
-`src/pages/Settings.tsx` persists `unitSystem` (metric/imperial) and `darkMode` but
-nothing reads them. Either wire `unitSystem` into `HealthMarkers` weight/measurement
-display (kg↔lb, cm↔in) or remove the toggles so they don't imply functionality.
-(`syringeType` is already wired into the calculator; `defaultInjectionTime` and
-`reminderMinutesBefore` are used.)
+### 3. Dead settings — **done**
+The `unitSystem` and `darkMode` settings were removed (nothing read them). Re-add a
+units toggle only together with kg↔lb / cm↔in display in `HealthMarkers`.
 
 ### 4. NewProtocol "custom interval" total-dose estimate — **S**
 `src/pages/NewProtocol.tsx` shows "~X total injections"; for a custom "every N days"
