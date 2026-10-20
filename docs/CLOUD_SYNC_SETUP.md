@@ -48,6 +48,11 @@ Only needed if you ever recreate the Supabase project.
    safe only because the sole table (`records`) has RLS with `auth.uid() = user_id` policies, so
    a caller without the shared login sees nothing. Keep RLS enabled on every table you add to
    `public`, and don't expose more tables/columns to the API than sync needs.
+   **Rotation constraint:** the URL and key are baked into the JS bundle at build time, so
+   rotating the key does not reach installed clients — any cached bundle or service-worker copy
+   keeps using the old key until it is rebuilt, redeployed (`scripts/deploy.sh`) and the
+   `CACHE_NAME` in `public/sw.js` is bumped. Rotate the key and redeploy in the same sitting,
+   and rotate the shared password too if the project itself is ever compromised.
 4. **Local dev**: create `.env.local` (gitignored):
    ```
    VITE_SUPABASE_URL=https://<ref>.supabase.co
