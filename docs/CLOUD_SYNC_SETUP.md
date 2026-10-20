@@ -50,7 +50,7 @@ Only needed if you ever recreate the Supabase project.
    `public`, and don't expose more tables/columns to the API than sync needs.
    **Rotation constraint:** the URL and key are baked into the JS bundle at build time, so
    rotating the key does not reach installed clients — any cached bundle or service-worker copy
-   keeps using the old key until it is rebuilt, redeployed (`scripts/deploy.sh`) and the
+   keeps using the old key until it is rebuilt, redeployed (`scripts/deploy.sh`) so the
    `CACHE_NAME` in `public/sw.js` is bumped. Rotate the key and redeploy in the same sitting,
    and rotate the shared password too if the project itself is ever compromised.
 4. **Local dev**: create `.env.local` (gitignored):
