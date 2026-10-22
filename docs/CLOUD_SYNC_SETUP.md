@@ -36,7 +36,7 @@ Only needed if you ever recreate the Supabase project.
 
 1. **Create project** at https://supabase.com (free tier).
 2. **Run the migrations in order**: SQL Editor → paste each file in
-   `supabase/migrations/` (`0001_init.sql`, then `0002_reject_extra_signups.sql`) → Run.
+   `supabase/migrations/` (`0001_init.sql`, then `0002_reject_extra_signups.sql`, `0003_clamp_updated_at.sql`) → Run.
    0002 enforces the single-shared-account model server-side: the first account created
    is allowed, every later signup is rejected even if the dashboard signup toggle is on.
    (Or via Management API with a personal access token:
