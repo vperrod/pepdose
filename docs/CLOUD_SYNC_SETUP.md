@@ -53,6 +53,13 @@ Only needed if you ever recreate the Supabase project.
    keeps using the old key until it is rebuilt, redeployed (`scripts/deploy.sh`) so the
    `CACHE_NAME` in `public/sw.js` is bumped. Rotate the key and redeploy in the same sitting,
    and rotate the shared password too if the project itself is ever compromised.
+   **Rotation runbook:** (1) create the new publishable key in Supabase → Project Settings →
+   API; (2) put it in `.env.local` as `VITE_SUPABASE_ANON_KEY` (and in the GitHub repo secret if
+   the Pages workflow is ever revived); (3) bump `CACHE_NAME` in `public/sw.js`, then run
+   `scripts/deploy.sh` (builds, rsyncs to `/srv/pepdose`); (4) confirm the live bundle carries the new
+   key; (5) only then revoke the old key — revoking first locks out every installed client until
+   it reloads; (6) change the shared password in Supabase Auth and tell both users to re-login.
+   The key is never committed: it lives only in the gitignored `.env.local` on the build host.
 4. **Local dev**: create `.env.local` (gitignored):
    ```
    VITE_SUPABASE_URL=https://<ref>.supabase.co
