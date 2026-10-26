@@ -130,6 +130,17 @@ describe('a scheduled dose never times itself by its injection date', () => {
     expect(plan.localPut).toEqual([]);
     expect(plan.push.map(r => r.id)).toEqual(['d1']);
   });
+
+  it('lets a local delete beat a remote row stamped a day ahead (clock skew or forgery)', () => {
+    const ahead = new Date(Date.now() + 864e5).toISOString();
+    const plan = planMerge(
+      [],
+      [remote('d1', ahead)],
+      [{ id: 'd1', kind: 'scheduledDoses', deletedAt: new Date().toISOString() }],
+    );
+    expect(plan.pushTombstone.map(d => d.id)).toEqual(['d1']);
+    expect(plan.localPut).toEqual([]);
+  });
 });
 
 describe('regenerating a schedule does not leave the old generation behind', () => {
