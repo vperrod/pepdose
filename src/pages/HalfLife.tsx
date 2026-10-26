@@ -63,7 +63,8 @@ export function HalfLife() {
   }, []);
 
   const activeWindow = WINDOWS[windowIdx];
-  const now = Date.now();
+  // Minute-granular so the memos below aren't invalidated by every render's fresh Date.now().
+  const now = Math.floor(Date.now() / 60_000) * 60_000;
   const windowStart = now - activeWindow.hours * 3_600_000;
   const applyOwnerFilter = useOwnerFilter();
   const ownedLogs = useMemo(() => applyOwnerFilter(logs), [applyOwnerFilter, logs]);
