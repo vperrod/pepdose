@@ -46,19 +46,24 @@
     async function nextDose() {
       const db = await openDB();
       return new Promise((res, rej) => {
-        const tx = db.transaction(STORE, 'readonly');
+        const tx = db.transaction([STORE, 'protocols'], 'readonly');
         const req = tx.objectStore(STORE).getAll();
-        req.onsuccess = () => {
-          const today = new Date().toISOString().slice(0, 10);
-          const now = new Date();
+        const protoReq = tx.objectStore('protocols').getAll();
+        tx.oncomplete = () => {
+          // Dose dates are local calendar days, so compare against local now, not UTC.
+          const n = new Date(), p2 = v => String(v).padStart(2, '0');
+          const now = n.getFullYear() + '-' + p2(n.getMonth() + 1) + '-' + p2(n.getDate()) + 'T' + p2(n.getHours()) + ':' + p2(n.getMinutes());
+          const when = d => d.date + 'T' + (d.time || '08:00');
           const owner = activeOwnerFilter();
+          // Mirrors utils/doseVisibility.ts: upcoming doses of non-active protocols are hidden.
+          const activeIds = new Set(protoReq.result.filter(p => p.status === 'active').map(p => p.id));
           const upcoming = req.result
             .filter(d => owner === 'all' || d.owner === owner)
-            .filter(d => d.status === 'upcoming' && (d.date > today || (d.date === today && d.time >= '00:00')))
-            .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+            .filter(d => d.status === 'upcoming' && activeIds.has(d.protocolId) && when(d) >= now)
+            .sort((a, b) => when(a).localeCompare(when(b)));
           res(upcoming[0] || null);
         };
-        req.onerror = () => rej(req.error);
+        tx.onerror = () => rej(tx.error);
       });
     }
     function fmt(d) {
