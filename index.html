@@ -11,19 +11,8 @@
     <link rel="apple-touch-icon" href="/pepdose/icons/pd-180.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>PepDose</title>
-    <script type="text/javascript">
-      // GitHub Pages SPA support: restore route from 404.html redirect
-      (function(l) {
-        if (l.search[1] === '/') {
-          var decoded = l.search.slice(1).split('&').map(function(s) {
-            return s.replace(/~and~/g, '&')
-          }).join('?');
-          window.history.replaceState(null, null,
-            l.pathname.slice(0, -1) + decoded + l.hash
-          );
-        }
-      }(window.location))
-    </script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://zqoehancrvcrkzuyrtrn.supabase.co wss://zqoehancrvcrkzuyrtrn.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <script src="/spa-redirect.js"></script>
   </head>
   <body>
     <div id="root"></div>
