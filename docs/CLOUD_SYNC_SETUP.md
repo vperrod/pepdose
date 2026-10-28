@@ -82,6 +82,15 @@ Only needed if you ever recreate the Supabase project.
 both people's data is exposed with no per-user recovery path. Rotate the shared password
 periodically; moving to per-user auth is a future option, not currently planned.
 
+**Hardening checklist (Supabase dashboard — none of this is enforced by the app):**
+- Authentication → Rate Limits: keep the sign-in / token-refresh limits at their defaults or lower.
+- Use a long random password (20+ chars, password manager) and set a minimum length of 12 under
+  Authentication → Providers → Email.
+- Signups are already capped by `0002`; also switch off "Allow new users to sign up" once the
+  shared account exists.
+- If the account holds sensitive health data, enable MFA (TOTP) on the Supabase project owner
+  account; the app itself has no MFA step, so the shared login stays single-factor.
+
 **Victor/Nadia isolation is client-side only.** Both profiles share one login, so `auth.uid()`
 is identical and RLS cannot tell them apart; `0002` only caps account creation, not row access.
 Anyone holding the shared login (or the anon key plus that login) can read both profiles' rows
