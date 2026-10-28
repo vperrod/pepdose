@@ -169,13 +169,25 @@ function CloudSyncCard() {
   const handleSignOut = async () => {
     setSyncing(true);
     setMsg('Saving your data to the cloud…');
+    // syncNow reports failure as a null result (skipped/suspended/busy) or per-kind
+    // errors, not only by throwing; clearing after any of those loses unsynced edits.
+    let synced = false;
     try {
-      await syncNow();
+      const res = await syncNow();
+      synced = !!res && res.errors.length === 0;
     } catch {
-      // A failed final push must not trap the user in a signed-in session; the
-      // cloud copy is behind by whatever was unsynced, which is the same state
-      // as closing the app.
-      setMsg('Could not sync before signing out — local data will still be cleared');
+      // leave synced false
+    }
+    if (!synced) {
+      const offline = !navigator.onLine ? 'You appear to be offline. ' : '';
+      const proceed = window.confirm(
+        `${offline}Your latest changes could not be saved to the cloud. Signing out will permanently delete unsynced data on this device. Sign out anyway?`,
+      );
+      if (!proceed) {
+        setMsg('Sign-out cancelled — data not synced');
+        setSyncing(false);
+        return;
+      }
     }
     try {
       await clearAllData();
