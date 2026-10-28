@@ -80,8 +80,30 @@ describe('cloud sign-out data isolation', () => {
     expect(mocks.syncNow).toHaveBeenCalled();
   });
 
-  it('still clears the local store when the final sync fails', async () => {
+  it('still clears the local store when the final sync fails and the user confirms', async () => {
     mocks.syncNow.mockRejectedValue(new Error('offline'));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await clickSignOut();
+    expect(mocks.clearAllData).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['reports errors', { pushed: 0, pulled: 0, errors: ['doses: push failed'] }],
+    ['returns null', null],
+    ['throws', new Error('offline')],
+  ])('keeps local data when the user declines sign-out after sync %s', async (_label, outcome) => {
+    if (outcome instanceof Error) mocks.syncNow.mockRejectedValue(outcome);
+    else mocks.syncNow.mockResolvedValue(outcome as never);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await clickSignOut();
+    expect(confirm).toHaveBeenCalled();
+    expect(mocks.clearAllData).not.toHaveBeenCalled();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it('wipes unsynced data only after the user confirms', async () => {
+    mocks.syncNow.mockResolvedValue(null as never);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     await clickSignOut();
     expect(mocks.clearAllData).toHaveBeenCalled();
   });
