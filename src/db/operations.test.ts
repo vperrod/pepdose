@@ -379,17 +379,28 @@ describe('importData', () => {
     expect(vials).toHaveLength(1);
   });
 
-  it('stamps imported rows with a fresh updatedAt so a newer remote tombstone cannot re-delete them', async () => {
+  it('keeps the backup updatedAt so an old backup cannot beat newer cloud edits', async () => {
     const log = await logDose(baseLog);
-    const exported = await exportAllData('all');
-    const stale = JSON.parse(exported);
+    const stale = JSON.parse(await exportAllData('all'));
     stale.doseLogs[0].updatedAt = '2020-01-01T00:00:00.000Z';
-    const before = Date.now();
 
     await importData(JSON.stringify(stale), 'Victor');
 
     const [restored] = await getAllDoseLogs();
     expect(restored.id).toBe(log.id);
+    expect(restored.updatedAt).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('re-stamps a restored row when a newer local delete is pending, so the tombstone cannot re-delete it', async () => {
+    const log = await logDose(baseLog);
+    const stale = JSON.parse(await exportAllData('all'));
+    stale.doseLogs[0].updatedAt = '2020-01-01T00:00:00.000Z';
+    await deleteDoseLog(log.id);
+    const before = Date.now();
+
+    await importData(JSON.stringify(stale), 'Victor');
+
+    const [restored] = await getAllDoseLogs();
     expect(Date.parse(restored.updatedAt ?? '')).toBeGreaterThanOrEqual(before);
   });
 

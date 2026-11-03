@@ -467,9 +467,12 @@ export async function importData(jsonString: string, owner: UserName): Promise<v
           const store = tx.objectStore(storeName);
           for (const item of data[storeName] as Record<string, unknown>[]) {
             if (ownedStores.has(storeName) && !item.owner) item.owner = owner;
-            // Restore is an explicit resurrection: without a fresh stamp, a remote
-            // tombstone newer than the backup would LWW-delete the row on next sync.
-            item.updatedAt = now;
+            // Keep the backup's own stamp so an old backup can't win LWW over newer
+            // cloud edits. Re-stamp only when it's missing or a local pending delete
+            // is newer — that restore is an explicit resurrection.
+            const pending = await ledger.get(item.id as string);
+            const backupTs = typeof item.updatedAt === 'string' ? item.updatedAt : '';
+            if (!backupTs || (pending && pending.deletedAt >= backupTs)) item.updatedAt = now;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await store.put(item as any);
             // Restoring a record cancels any pending delete of it.
