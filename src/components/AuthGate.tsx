@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { CloudCheck, CloudOff, Loader2 } from 'lucide-react';
 import { supabase, cloudEnabled } from '../db/supabase';
 import { syncNow } from '../db/sync';
+import { lockoutRemainingMs } from '../utils/loginThrottle';
 
 // Takes the ref, not ref.current: the caller reads .current during render, when
 // the ref is still null, and the effect's [container] dependency never changes
@@ -140,16 +141,27 @@ function LoginForm({ containerRef }: { containerRef?: React.RefObject<HTMLDivEle
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const emailRef = useRef<HTMLInputElement>(null);
+  const failures = useRef({ count: 0, at: 0 });
 
   useFocusTrap(containerRef ?? emptyRef);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    const wait = lockoutRemainingMs(failures.current.count, failures.current.at, Date.now());
+    if (wait > 0) {
+      setError(`Too many failed attempts. Try again in ${Math.ceil(wait / 1000)}s.`);
+      return;
+    }
     setError(null);
     setBusy(true);
     const { error } = await supabase!.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) setError(error.message);
+    if (error) {
+      failures.current = { count: failures.current.count + 1, at: Date.now() };
+      setError(error.message);
+    } else {
+      failures.current = { count: 0, at: 0 };
+    }
   };
 
   return (
