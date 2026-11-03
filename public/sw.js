@@ -1,5 +1,5 @@
 // MUST be bumped with every shipped fix: installed PWAs only reinstall the SW (and drop stale caches) when sw.js bytes change — an unbumped deploy leaves devices on the old build.
-const CACHE_NAME = 'pepdose-v8-' + Date.now();
+const CACHE_NAME = 'pepdose-v9-' + Date.now();
 const BASE = '/pepdose/';
 const STATIC_ASSETS = [
   BASE,

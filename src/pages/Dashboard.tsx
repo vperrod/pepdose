@@ -205,7 +205,7 @@ export function Dashboard() {
 
       {nextDose ? (
         <button
-          onClick={() => setActiveDose(nextDose)}
+          onClick={() => handleRowTap(nextDose, false)}
           className="card-glass p-5 mb-5 stagger-item w-full text-left tap-target block"
           style={{ animationDelay: '0.05s' }}
         >
