@@ -43,13 +43,13 @@ afterEach(cleanup);
 
 it("predicts a vial's empty date from its own owner's logs only", async () => {
   ops.getVials.mockResolvedValueOnce([{
-    id: 'v1', peptideId: 'bpc-157', owner: 'Victor', status: 'active',
+    id: 'v1', peptideId: 'tirzepatide', owner: 'Victor', status: 'active',
     dosesRemaining: 10, totalDoses: 20, amountMg: 10, bacWaterMl: 2,
     reconstitutionDate: '2026-08-01T00:00:00.000Z',
   } as Vial]);
   ops.getAllDoseLogs.mockResolvedValueOnce([
-    { peptideId: 'bpc-157', owner: 'Victor', date: '2026-08-30' } as DoseLog,
-    { peptideId: 'bpc-157', owner: 'Nadia', date: '2026-08-31' } as DoseLog,
+    { peptideId: 'tirzepatide', owner: 'Victor', date: '2026-08-30' } as DoseLog,
+    { peptideId: 'tirzepatide', owner: 'Nadia', date: '2026-08-31' } as DoseLog,
   ]);
   localStorage.setItem('pepdose-view-filter', 'Victor');
 
@@ -62,9 +62,9 @@ it("predicts a vial's empty date from its own owner's logs only", async () => {
 
 it("prefills total doses from the selected peptide's own vial defaults", async () => {
   await renderForm();
-  const bpc = getPeptideById('bpc-157')!;
+  const bpc = getPeptideById('tirzepatide')!;
 
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bpc-157' } });
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'tirzepatide' } });
 
   const expected = computeRecon({
     mode: 'forward', vialMg: bpc.reconstitution.typicalVialMg,

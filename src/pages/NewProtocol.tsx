@@ -460,6 +460,9 @@ export function NewProtocol() {
                     </button>
                   )}
                 </div>
+                {pep?.doseGuide && (
+                  <p className="text-xs text-text-secondary mb-4">{pep.doseGuide}</p>
+                )}
 
                 {hasTitration && (
                   <div className="flex items-center gap-2 text-xs text-secondary bg-secondary-dim rounded-lg px-3 py-2 mb-4">

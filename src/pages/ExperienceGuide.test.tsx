@@ -81,13 +81,13 @@ describe('ExperienceGuide browse mode', () => {
 
   it('renders the chosen peptide guide when no protocol is active', async () => {
     await renderPage();
-    await browseTo('bpc-157');
+    await browseTo('tirzepatide');
     expect(screen.getByText('Side Effects')).toBeTruthy();
   });
 
   it('shows no cycle week for a guide browsed outside a protocol', async () => {
     await renderPage();
-    await browseTo('bpc-157');
+    await browseTo('tirzepatide');
     expect(screen.queryByText(/of cycle/)).toBeNull();
   });
 

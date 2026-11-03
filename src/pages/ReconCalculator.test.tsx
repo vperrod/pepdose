@@ -21,10 +21,10 @@ function type(placeholder: string, value: string) {
   fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
 }
 
-// BPC-157 ships a 5mg vial / 2ml water / 500mcg standard dose, so the autofilled
-// draw is 0.5mg at 2.5mg/ml = 0.2ml = 20 units on a U-100 syringe, 10 doses/vial.
-function selectBpc157() {
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bpc-157' } });
+// Tesamorelin ships a 10mg vial / 1ml water / 1.4mg standard dose, so the autofilled
+// draw is 1.4mg at 10mg/ml = 0.14ml = 14 units on a U-100 syringe, 7 doses/vial.
+function selectTesamorelin() {
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'tesamorelin' } });
 }
 
 beforeEach(() => {
@@ -36,26 +36,26 @@ afterEach(cleanup);
 describe('ReconCalculator peptide presets', () => {
   it('autofills the vial size from the selected peptide', async () => {
     await renderPage();
-    selectBpc157();
-    expect((screen.getByPlaceholderText('5') as HTMLInputElement).value).toBe('5');
+    selectTesamorelin();
+    expect((screen.getByPlaceholderText('5') as HTMLInputElement).value).toBe('10');
   });
 
   it('computes the unit mark to draw from the autofilled preset', async () => {
     await renderPage();
-    selectBpc157();
-    expect(screen.getByText('Draw to 20.0 unit mark')).toBeTruthy();
+    selectTesamorelin();
+    expect(screen.getByText('Draw to 14.0 unit mark')).toBeTruthy();
   });
 
   it('counts the whole doses that fit in the vial', async () => {
     await renderPage();
-    selectBpc157();
-    expect(screen.getByText('doses/vial').previousSibling!.textContent).toBe('10');
+    selectTesamorelin();
+    expect(screen.getByText('doses/vial').previousSibling!.textContent).toBe('7');
   });
 
   it('preselects the peptide named in the ?peptide= deep link', async () => {
-    searchParams.current = new URLSearchParams('peptide=bpc-157');
+    searchParams.current = new URLSearchParams('peptide=tesamorelin');
     await renderPage();
-    expect(screen.getByText('Draw to 20.0 unit mark')).toBeTruthy();
+    expect(screen.getByText('Draw to 14.0 unit mark')).toBeTruthy();
   });
 });
 
@@ -70,16 +70,16 @@ describe('ReconCalculator warnings and modes', () => {
 
   it('back-solves the water needed to land the dose on the target unit mark', async () => {
     await renderPage();
-    selectBpc157();
+    selectTesamorelin();
     await act(async () => { fireEvent.click(screen.getByText('Clean draw → find water')); });
     const headline = screen.getByText('Add this much water').nextElementSibling!;
-    expect(headline.textContent).toBe('1.00 mL');
+    expect(headline.textContent).toBe('0.71 mL');
   });
 
   it('reads the syringe scale from the saved U-40 setting', async () => {
     localStorage.setItem('pepdose-settings', JSON.stringify({ syringeType: 'u40' }));
     await renderPage();
-    selectBpc157();
+    selectTesamorelin();
     expect(screen.getByText('U-40 Insulin Syringe')).toBeTruthy();
   });
 

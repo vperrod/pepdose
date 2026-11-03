@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { format, differenceInMinutes, differenceInHours, differenceInWeeks, parseISO } from 'date-fns';
-import { Syringe, TrendingUp, ChevronRight, Zap, Flame } from 'lucide-react';
-import { getScheduledDosesForDate, getProtocols, getDoseLogsForDate, getScheduledDosesForProtocols } from '../db/operations';
+import { Syringe, TrendingUp, Zap, Flame, MoreHorizontal } from 'lucide-react';
+import { getScheduledDosesForDate, getProtocols, getDoseLogsForDate, getScheduledDosesForProtocols, logDose } from '../db/operations';
 import { getPeptideById } from '../data/peptides';
 import { scheduleReminders } from '../utils/notifications';
 import { nextTitrationStep, type NextStep } from '../utils/titrationCoach';
@@ -45,6 +45,9 @@ export function Dashboard() {
   const [allScheduled, setAllScheduled] = useState<ScheduledDose[]>([]);
   const [activeDose, setActiveDose] = useState<DashboardDose | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [loggingId, setLoggingId] = useState<string | null>(null);
+  const [logError, setLogError] = useState<string | null>(null);
+
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const now = new Date();
@@ -105,6 +108,34 @@ export function Dashboard() {
     );
   }, [applyOwnerFilter, protocols, allScheduled]);
   const visibleDoses = applyOwnerFilter(todayDoses);
+
+  // One tap logs a pending dose at its scheduled amount. Without a suggested site we open the
+  // sheet instead, so the site-rotation stats never get a guessed site.
+  async function handleRowTap(dose: (typeof visibleDoses)[number], isDone: boolean) {
+    if (isDone || !dose.suggestedSite) { setActiveDose(dose); return; }
+    if (loggingId) return;
+    setLoggingId(dose.id);
+    setLogError(null);
+    try {
+      await logDose({
+        owner: dose.owner,
+        scheduledDoseId: dose.id,
+        protocolId: dose.protocolId,
+        peptideId: dose.peptideId,
+        date: dose.date,
+        time: format(new Date(), 'HH:mm'),
+        dose: dose.dose,
+        unit: dose.unit,
+        route: dose.route,
+        injectionSite: dose.suggestedSite,
+      });
+      setReloadKey(k => k + 1);
+    } catch (e) {
+      setLogError(e instanceof Error ? e.message : 'Could not log the dose — please try again.');
+    } finally {
+      setLoggingId(null);
+    }
+  }
   const visibleProtocols = applyOwnerFilter(protocols);
   // Protocols that opted into titration alerts — nothing announces a step-up
   // for the others, even though their schedule still steps up.
@@ -273,40 +304,55 @@ export function Dashboard() {
             </div>
           )}
 
+          {logError && <p role="alert" className="text-xs text-danger mb-2">{logError}</p>}
           <div className="space-y-2">
             {visibleDoses.map((dose, i) => {
               const isDone = dose.status === 'logged' || logged.has(dose.id);
               const shownDose = logsByDoseId.get(dose.id)?.dose ?? dose.dose;
               const clicks = formatClicks(clicksForDose(shownDose, dose.unit, dose.recon, penMlPerClick()));
+              const isLogging = loggingId === dose.id;
               return (
-                <button
+                <div
                   key={dose.id}
-                  onClick={() => setActiveDose(dose)}
-                  className="card-glass w-full flex items-center gap-3 p-4 tap-target text-left stagger-item"
+                  className="card-glass w-full flex items-center gap-1 pr-2 stagger-item"
                   style={{ animationDelay: `${0.15 + i * 0.05}s` }}
                 >
-                  <div
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: isDone ? '#22c55e' : dose.categoryColor }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className={`font-medium text-sm ${isDone ? 'line-through text-text-muted' : ''}`}>
-                        {dose.peptideName}
+                  <button
+                    onClick={() => handleRowTap(dose, isDone)}
+                    className="flex-1 min-w-0 flex items-center gap-3 p-4 tap-target text-left"
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: isDone ? '#22c55e' : dose.categoryColor }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className={`font-medium text-sm ${isDone ? 'line-through text-text-muted' : ''}`}>
+                          {dose.peptideName}
+                        </p>
+                        <UserBadge owner={dose.owner} />
+                      </div>
+                      <p className="text-xs text-text-muted font-mono">
+                        {shownDose} {dose.unit}
                       </p>
-                      <UserBadge owner={dose.owner} />
+                      {clicks && <p className="text-[11px] text-primary font-mono">{clicks}</p>}
+                      {dose.penColor && <p className="text-[11px] text-text-muted">Pen: {dose.penColor}</p>}
                     </div>
-                    <p className="text-xs text-text-muted font-mono">
-                      {shownDose} {dose.unit}
-                    </p>
-                    {clicks && <p className="text-[11px] text-primary font-mono">{clicks}</p>}
-                    {dose.penColor && <p className="text-[11px] text-text-muted">Pen: {dose.penColor}</p>}
-                  </div>
-                  <span className={`text-xs font-mono ${isDone ? 'text-success' : 'text-text-secondary'}`}>
-                    {isDone ? 'Logged' : dose.time}
-                  </span>
-                  {!isDone && <ChevronRight className="w-4 h-4 text-text-muted" />}
-                </button>
+                    <span className={`text-xs font-mono ${isDone ? 'text-success' : 'text-text-secondary'}`}>
+                      {isDone ? 'Logged' : dose.time}
+                    </span>
+                    {isLogging && (
+                      <div className="w-4 h-4 border-2 border-t-transparent border-primary rounded-full animate-spin" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveDose(dose)}
+                    className="p-2 tap-target"
+                    aria-label="Dose options"
+                  >
+                    <MoreHorizontal className="w-4 h-4 text-text-muted" />
+                  </button>
+                </div>
               );
             })}
             {visibleAdhoc.map(log => (

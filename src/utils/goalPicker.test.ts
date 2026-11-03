@@ -14,10 +14,8 @@ describe('synergyStacksFor', () => {
   it('returns synergy stacks where both peptides are in the category', () => {
     const stacks = synergyStacksFor('healing');
     expect(stacks.every(s => s.relation === 'synergy')).toBe(true);
-    // BPC-157 + TB-500 are both healing peptides and a documented synergy
-    expect(stacks.some(s =>
-      [s.peptideA, s.peptideB].sort().join('+') === ['bpc-157', 'tb-500'].sort().join('+')
-    )).toBe(true);
+    // Only Playbook peptides are offered, so a stack with a hidden peptide must not appear.
+    expect(stacks.every(s => ['bpc-157', 'tb-500'].every(id => s.peptideA !== id && s.peptideB !== id))).toBe(true);
   });
   it('excludes synergies whose peptides are outside the category', () => {
     const stacks = synergyStacksFor('nootropic');

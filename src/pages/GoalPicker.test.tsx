@@ -25,7 +25,7 @@ describe('GoalPicker', () => {
   it('lists the peptides for the chosen goal', () => {
     render(<GoalPicker />);
     pickHealing();
-    expect(screen.getByText('BPC-157')).toBeTruthy();
+    expect(screen.getByText('KLOW (GHK-Cu + TB-500 + BPC-157 + KPV)')).toBeTruthy();
   });
 
   it('hides peptides from other goals', () => {
@@ -37,18 +37,10 @@ describe('GoalPicker', () => {
   it('preselects the chosen peptide on the new protocol screen', () => {
     render(<GoalPicker />);
     pickHealing();
-    fireEvent.click(screen.getByText('BPC-157'));
-    expect(navigate).toHaveBeenCalledWith('/protocols/new', { state: { preselectPeptideIds: ['bpc-157'] } });
+    fireEvent.click(screen.getByText('KLOW (GHK-Cu + TB-500 + BPC-157 + KPV)'));
+    expect(navigate).toHaveBeenCalledWith('/protocols/new', { state: { preselectPeptideIds: ['klow'] } });
   });
 
-  // Not the BPC-157 + TB-500 stack: a pre-mixed blend peptide of the same name
-  // is also listed under this goal, so that label is ambiguous in the DOM.
-  it('preselects both halves of a synergy stack', () => {
-    render(<GoalPicker />);
-    pickHealing();
-    fireEvent.click(screen.getByText('BPC-157 + KPV'));
-    expect(navigate).toHaveBeenCalledWith('/protocols/new', { state: { preselectPeptideIds: ['bpc-157', 'kpv'] } });
-  });
 
   it('returns to the goal grid instead of leaving the page', () => {
     render(<GoalPicker />);

@@ -10,6 +10,6 @@ export function synergyStacksFor(category: PeptideCategory): StackRule[] {
     if (r.relation !== 'synergy') return false;
     const a = getPeptideById(r.peptideA);
     const b = getPeptideById(r.peptideB);
-    return a?.category === category && b?.category === category;
+    return !!a?.playbook && !!b?.playbook && a.category === category && b.category === category;
   });
 }

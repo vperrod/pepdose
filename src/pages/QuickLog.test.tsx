@@ -21,7 +21,7 @@ vi.mock('../context/ViewFilterContext', () => ({
 async function openAdhocAndFill() {
   await act(async () => { render(<QuickLog />); });
   fireEvent.click(screen.getByText('Ad-hoc dose'));
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bpc-157' } });
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'tirzepatide' } });
   fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '250' } });
 }
 const saveButton = () => screen.getByRole('button', { name: 'Log Dose' });
@@ -33,7 +33,7 @@ afterEach(cleanup);
     ops.logDose.mockResolvedValue({});
     await openAdhocAndFill();
     await act(async () => { fireEvent.click(saveButton()); });
-    expect(screen.getByText(/Logged BPC-157/)).toBeTruthy();
+    expect(screen.getByText(/Logged Tirzepatide/)).toBeTruthy();
   });
 
   it('a failed save shows the error instead of stranding the sheet on "Saving…"', async () => {

@@ -208,6 +208,12 @@ export function PeptideLibrary() {
                             <p className="text-text-secondary">{p.halfLifeNote}</p>
                           </div>
                         )}
+                        {p.doseGuide && (
+                          <div>
+                            <p className="text-text-muted mb-0.5">How to dose it</p>
+                            <p className="text-text-secondary">{p.doseGuide}</p>
+                          </div>
+                        )}
                         {p.regulatoryStatus && (
                           <div>
                             <p className="text-text-muted mb-0.5">Regulatory status</p>

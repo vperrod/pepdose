@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PEPTIDES } from './peptides';
+import { ALL_PEPTIDES as PEPTIDES } from './peptides';
 import { EXPERIENCE_DATA } from './experienceTimelines';
 import { STACKING_RULES } from './stackingRules';
 import { PROTOCOL_TEMPLATES } from './protocols';

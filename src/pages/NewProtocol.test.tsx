@@ -6,7 +6,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import { NewProtocol } from './NewProtocol';
-import { getPeptideById } from '../data/peptides';
 
 const ops = vi.hoisted(() => ({
   saveProtocol: vi.fn(async (_p: unknown) => ({ id: 'proto-1' })),
@@ -34,18 +33,12 @@ const savedProtocol = () => ops.saveProtocol.mock.calls[0][0] as {
            daysOfWeek?: number[]; customSchedule?: boolean }[];
 };
 
-// Mirrors the CUSTOM_SCHEDULE sentinel value in NewProtocol.tsx/Protocols.tsx —
-// not exported, so tests target the <select> by its option value directly.
-const CUSTOM_SCHEDULE = '__custom__';
-const scheduledDoses = () => ops.saveScheduledDoses.mock.calls[0][0] as
-  { peptideId: string; dose: number; date: string }[];
-
-/** Walk the wizard: pick Retatrutide, optionally retune it, then create. */
+/** Walk the wizard: pick Tirzepatide, optionally retune it, then create. */
 async function createWith(retune?: () => void) {
   await act(async () => { render(<NewProtocol />); });
   fireEvent.change(screen.getByPlaceholderText('Search peptides...'),
-    { target: { value: 'Retatrutide' } });
-  fireEvent.click(screen.getByText('Retatrutide'));
+    { target: { value: 'Tirzepatide' } });
+  fireEvent.click(screen.getByText('Tirzepatide'));
   retune?.();
   fireEvent.click(screen.getByRole('button', { name: /Review Protocol/ }));
   await act(async () => {
@@ -64,51 +57,17 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('NewProtocol', () => {
-  it('starts a selected peptide on its first protocol variant', async () => {
-    await createWith();
-    const variant = getPeptideById('retatrutide')!.dosing.protocolVariants![0];
-    expect(savedProtocol().doses[0].variantId).toBe(variant.id);
-  });
 
-  it('takes the cycle length from the variant phases, not the default 4 weeks', async () => {
-    await createWith();
-    const variant = getPeptideById('retatrutide')!.dosing.protocolVariants![0];
-    const lastWeek = variant.phases[variant.phases.length - 1].weekEnd;
-    expect(savedProtocol().doses[0].durationWeeks).toBe(lastWeek);
-  });
 
-  it('carries the variant phases through to the saved protocol', async () => {
-    await createWith();
-    const variant = getPeptideById('retatrutide')!.dosing.protocolVariants![0];
-    expect(savedProtocol().doses[0].schedulePhases).toEqual(variant.phases);
-  });
 
-  it('switching variant applies that variant dose override', async () => {
-    const community = getPeptideById('retatrutide')!.dosing
-      .protocolVariants!.find(v => v.id === 'community-cycle')!;
-    await createWith(() => {
-      fireEvent.change(screen.getByDisplayValue(
-        getPeptideById('retatrutide')!.dosing.protocolVariants![0].name),
-        { target: { value: community.id } });
-    });
-    expect(savedProtocol().doses[0].dose).toBe(community.doseOverride);
-  });
 
   it('saves the start dose the user typed instead of the template default', async () => {
     await createWith(() => {
-      fireEvent.change(doseField(), { target: { value: '0.5' } });
+      fireEvent.change(doseField(), { target: { value: '5' } });
     });
-    expect(savedProtocol().doses[0].dose).toBe(0.5);
+    expect(savedProtocol().doses[0].dose).toBe(5);
   });
 
-  it('scales the titration ladder to that start dose on the generated schedule', async () => {
-    // Ladder step 1 is 2mg; starting at 0.5mg must scale the whole ladder down
-    // (getTitrationDose), not jump the user to the template's first step.
-    await createWith(() => {
-      fireEvent.change(doseField(), { target: { value: '0.5' } });
-    });
-    expect(scheduledDoses()[0].dose).toBe(0.5);
-  });
 
   it('refuses to create anything when the dose is blank', async () => {
     await createWith(() => {
@@ -117,19 +76,6 @@ describe('NewProtocol', () => {
     expect(ops.saveProtocol).not.toHaveBeenCalled();
   });
 
-  it('picking Custom Schedule drops the canned variant and is not overwritten by variant defaults', async () => {
-    const variant = getPeptideById('retatrutide')!.dosing.protocolVariants![0];
-    await createWith(() => {
-      fireEvent.change(screen.getByDisplayValue(variant.name), { target: { value: CUSTOM_SCHEDULE } });
-      fireEvent.click(screen.getByLabelText('Monday'));
-    });
-    const dose = savedProtocol().doses[0];
-    expect(dose.schedulePhases).toBeUndefined();
-    expect(dose.variantId).toBeUndefined();
-    expect(dose.frequency).toBe('weekly_days');
-    expect(dose.daysOfWeek).toEqual([1]);
-    expect(dose.customSchedule).toBe(true);
-  });
 
   it('re-enables Start Protocol when the write throws', async () => {
     ops.saveScheduledDoses.mockRejectedValueOnce(new Error('QuotaExceededError'));

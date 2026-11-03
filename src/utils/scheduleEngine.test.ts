@@ -3,9 +3,9 @@ import { generateSchedule, extendSchedule, phasesTotalWeeks, summarizePhases } f
 import { getPeptideById } from '../data/peptides';
 import type { ScheduledDose } from '../db/schema';
 
-// Retatrutide ladder: wk1-4 = 2mg, wk5-8 = 4mg, ... (see data/peptides.ts)
-const RETA = {
-  peptideId: 'retatrutide',
+// Semaglutide ladder: wk1-4 = 0.25mg, wk5-8 = 0.5mg, ... (see data/peptides.ts)
+const SEMA = {
+  peptideId: 'semaglutide',
   unit: 'mg' as const,
   frequency: 'weekly',
   timeOfDay: 'morning',
@@ -16,15 +16,15 @@ const RETA = {
 
 describe('titration dose scaling', () => {
   it('leaves the stock ladder unchanged when the start dose equals the first step', () => {
-    const doses = generateSchedule({ ...RETA, dose: 2 });
-    expect(doses[0].dose).toBe(2); // week 1
-    expect(doses[4].dose).toBe(4); // week 5
+    const doses = generateSchedule({ ...SEMA, dose: 0.25 });
+    expect(doses[0].dose).toBe(0.25); // week 1
+    expect(doses[4].dose).toBe(0.5); // week 5
   });
 
   it('scales the whole ladder to a gentler chosen start dose', () => {
-    const doses = generateSchedule({ ...RETA, dose: 0.5 }); // quarter of the 2mg step
-    expect(doses[0].dose).toBe(0.5); // week 1: 2 * 0.25
-    expect(doses[4].dose).toBe(1); //   week 5: 4 * 0.25
+    const doses = generateSchedule({ ...SEMA, dose: 0.125 }); // half of the 0.25mg step
+    expect(doses[0].dose).toBe(0.125); // week 1: 0.25 * 0.5
+    expect(doses[4].dose).toBe(0.25); //   week 5: 0.5 * 0.5
   });
 });
 

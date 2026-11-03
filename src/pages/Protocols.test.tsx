@@ -175,23 +175,23 @@ describe('Protocols edit sheet — custom schedule regression', () => {
   // the edit sheet silently reverted a user's custom weekday schedule back to
   // the canned variant. customSchedule: true (set by applyVariantEdit) is what
   // openSheet must now check to skip that backfill.
-  const variant = getPeptideById('retatrutide')!.dosing.protocolVariants![0];
+  const variant = getPeptideById('nad-plus')!.dosing.protocolVariants![0];
 
   const customDose = {
-    peptideId: 'retatrutide', dose: 2, unit: 'mg', frequency: 'weekly_days',
+    peptideId: 'nad-plus', dose: 50, unit: 'mg', frequency: 'weekly_days',
     daysOfWeek: [1], timeOfDay: 'morning', timesPerDay: 1,
     customSchedule: true,
   } as UserProtocol['doses'][0];
 
   it('keeps a custom-scheduled protocol on Custom, not the fallback variant', async () => {
-    await openActions(protocol({ peptideIds: ['retatrutide'], doses: [customDose] }));
+    await openActions(protocol({ peptideIds: ['nad-plus'], doses: [customDose] }));
     await click('Edit Protocol');
     expect(screen.getByDisplayValue('Custom (set your own schedule)')).not.toBeNull();
     expect(screen.queryByDisplayValue(variant.name)).toBeNull();
   });
 
   it('keeps the user\'s chosen weekday selected, not the variant phases', async () => {
-    await openActions(protocol({ peptideIds: ['retatrutide'], doses: [customDose] }));
+    await openActions(protocol({ peptideIds: ['nad-plus'], doses: [customDose] }));
     await click('Edit Protocol');
     expect(screen.getByLabelText('Monday').getAttribute('aria-pressed')).toBe('true');
   });
