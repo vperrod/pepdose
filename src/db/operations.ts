@@ -4,6 +4,7 @@ import { USERS } from '../data/users';
 import { filterByOwner, type ViewFilter } from '../context/ownerFilter';
 import { format } from 'date-fns';
 import { planDoseDedupe } from '../utils/dedupeDoses';
+import { generateSchedule } from '../utils/scheduleEngine';
 import { suspendSync } from './sync';
 
 function genId(): string {
@@ -129,6 +130,28 @@ export async function repairDuplicateScheduledDoses(): Promise<number> {
   }
   await tx.done;
   return spare.length;
+}
+
+/** One-shot repair for protocols saved while the plain 5-days-a-week schedule
+ *  generated nothing (GLOW/KLOW, 2026-11-03/04): active, no doses, no logs.
+ *  Rebuilds their doses from the saved config. Idempotent. */
+export async function repairEmptyFiveDayProtocols(): Promise<number> {
+  const db = await getDB();
+  let rebuilt = 0;
+  for (const p of await db.getAll('protocols')) {
+    if (p.status !== 'active' || !p.doses.some(d => d.frequency === '5x_week' && !d.schedulePhases?.length)) continue;
+    if ((await getScheduledDosesForProtocol(p.id)).length > 0) continue;
+    if ((await getDoseLogsForProtocol(p.id)).length > 0) continue;
+    const doses = p.doses.flatMap(c => generateSchedule({
+      peptideId: c.peptideId, dose: c.dose, unit: c.unit, frequency: c.frequency,
+      customFrequencyDays: c.customFrequencyDays, daysOfWeek: c.daysOfWeek, timesPerDay: c.timesPerDay,
+      timeOfDay: c.timeOfDay, startDate: p.startDate, durationWeeks: c.durationWeeks ?? p.durationWeeks,
+      schedulePhases: c.schedulePhases, protocolBreaks: p.breaks, protocolId: p.id,
+    }));
+    await saveScheduledDoses(doses, p.owner);
+    rebuilt++;
+  }
+  return rebuilt;
 }
 
 export async function getScheduledDosesForDate(date: string): Promise<ScheduledDose[]> {

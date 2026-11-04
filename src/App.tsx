@@ -29,7 +29,7 @@ import { ViewFilterProvider } from './context/ViewFilterContext';
 import { UserFilterChip } from './components/UserFilterChip';
 import { AuthGate } from './components/AuthGate';
 import { initReminders } from './utils/notifications';
-import { repairDuplicateScheduledDoses } from './db/operations';
+import { repairDuplicateScheduledDoses, repairEmptyFiveDayProtocols } from './db/operations';
 
 export default function App() {
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('pepdose-onboarded') === 'true');
@@ -49,6 +49,7 @@ function AppInner({ onboarded, setOnboarded }: { onboarded: boolean; setOnboarde
     void repairDuplicateScheduledDoses().then(n => {
       if (n > 0) console.info(`[pepdose] removed ${n} duplicate scheduled dose(s)`);
     });
+    void repairEmptyFiveDayProtocols();
     return initReminders();
   }, [onboarded]);
 

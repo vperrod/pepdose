@@ -9,6 +9,7 @@ import {
   deleteDoseLog,
   getAllDoseLogs,
   saveProtocol,
+  repairEmptyFiveDayProtocols,
   getProtocol,
   saveScheduledDoses,
   getScheduledDosesForProtocol,
@@ -441,5 +442,17 @@ describe('importData', () => {
 
     vi.restoreAllMocks();
     expect(await getVials('bpc-157')).toHaveLength(0);
+  });
+});
+
+describe('repairEmptyFiveDayProtocols', () => {
+  it('rebuilds doses for an active 5x_week protocol that saved none, and is idempotent', async () => {
+    const p = await saveProtocol({
+      name: 'GLOW', owner: 'Victor', peptideIds: ['glow-blend'], startDate: '2026-11-04', durationWeeks: 4, status: 'active',
+      doses: [{ peptideId: 'glow-blend', dose: 4, unit: 'mg', frequency: '5x_week', timeOfDay: 'morning' }],
+    });
+    expect(await repairEmptyFiveDayProtocols()).toBe(1);
+    expect((await getScheduledDosesForProtocol(p.id)).length).toBe(20);
+    expect(await repairEmptyFiveDayProtocols()).toBe(0);
   });
 });
