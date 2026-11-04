@@ -172,6 +172,28 @@ export function generateSchedule(config: ScheduleConfig): DraftDose[] {
       doseIndex++;
       current = addDays(current, 14);
     }
+  } else if (config.frequency === '5x_week') {
+    // Weekdays only, matching the phased path.
+    const days = eachDayOfInterval({ start: startDate, end: addDays(endDate, -1) });
+    for (const day of days) {
+      if (day.getDay() === 0 || day.getDay() === 6) continue;
+      const weekNum = Math.floor((day.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      if (isInBreak(weekNum, config.protocolBreaks)) continue;
+      doses.push({
+        id: generateId(),
+        protocolId: config.protocolId,
+        peptideId: config.peptideId,
+        date: format(day, 'yyyy-MM-dd'),
+        time: timeStr,
+        dose: config.dose,
+        unit: config.unit,
+        route: peptide?.route || 'subq',
+        status: 'upcoming',
+        suggestedSite: suggestSite(doseIndex),
+        weekNumber: weekNum,
+      });
+      doseIndex++;
+    }
   } else if (config.frequency === 'weekly_days' && config.daysOfWeek && config.daysOfWeek.length > 0) {
     const days = eachDayOfInterval({ start: startDate, end: addDays(endDate, -1) });
     for (const day of days) {

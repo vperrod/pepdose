@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateSchedule, extendSchedule, phasesTotalWeeks, summarizePhases } from './scheduleEngine';
-import { getPeptideById } from '../data/peptides';
+import { getPeptideById, PEPTIDES } from '../data/peptides';
 import type { ScheduledDose } from '../db/schema';
 
 // Semaglutide ladder: wk1-4 = 0.25mg, wk5-8 = 0.5mg, ... (see data/peptides.ts)
@@ -296,4 +296,17 @@ describe('summarizePhases', () => {
       { weekStart: 1, weekEnd: 4, frequency: 'weekly_days', daysOfWeek: [1, 4] },
     ])).toBe('Mon/Thu ×4wk → off');
   });
+});
+
+describe('every playbook peptide generates a schedule from its own defaults', () => {
+  for (const p of PEPTIDES) {
+    it(`${p.id} produces doses`, () => {
+      const doses = generateSchedule({
+        protocolId: 'x', peptideId: p.id, dose: p.dosing.standard, unit: p.dosing.unit,
+        frequency: p.dosing.frequency, customFrequencyDays: p.dosing.customFrequencyDays,
+        timeOfDay: p.dosing.timeOfDay, startDate: '2026-01-05', durationWeeks: 4,
+      });
+      expect(doses.length).toBeGreaterThan(0);
+    });
+  }
 });
