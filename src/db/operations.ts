@@ -5,7 +5,7 @@ import { filterByOwner, type ViewFilter } from '../context/ownerFilter';
 import { format } from 'date-fns';
 import { planDoseDedupe } from '../utils/dedupeDoses';
 import { generateSchedule } from '../utils/scheduleEngine';
-import { suspendSync } from './sync';
+import { suspendSync, resetSyncCursor } from './sync';
 
 function genId(): string {
   return crypto.randomUUID();
@@ -511,6 +511,9 @@ export async function importData(jsonString: string, owner: UserName): Promise<v
       throw err;
     }
     await tx.done;
+    // Restored rows keep old updatedAt stamps, so a delta pass would skip them;
+    // force the next sync to be a full pass so the restore reaches the cloud.
+    resetSyncCursor();
   } finally {
     resumeSync();
   }
