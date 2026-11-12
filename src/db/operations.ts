@@ -5,6 +5,8 @@ import { filterByOwner, type ViewFilter } from '../context/ownerFilter';
 import { format } from 'date-fns';
 import { planDoseDedupe } from '../utils/dedupeDoses';
 import { generateSchedule } from '../utils/scheduleEngine';
+import { cycleTotalWeeks } from '../utils/cycleForm';
+import type { Cycle } from '../utils/cycle';
 import { suspendSync, resetSyncCursor } from './sync';
 
 function genId(): string {
@@ -61,6 +63,59 @@ export async function updateProtocol(id: string, updates: Partial<UserProtocol>)
   const existing = await db.get('protocols', id);
   if (!existing) return;
   await db.put('protocols', { ...existing, ...updates, updatedAt: new Date().toISOString() });
+}
+
+/** Rebuild a protocol's upcoming doses from its settings (start date, doses, cycles, breaks). Logged, skipped and
+ *  missed doses are never touched. The caller stores the protocol itself afterwards. */
+export async function rebuildUpcomingDoses(proto: UserProtocol): Promise<void> {
+  // Regenerate the full schedule from the start date so titration week-alignment is preserved, then keep only the
+  // upcoming portion.
+  const fullDoses = proto.doses.flatMap(d =>
+    generateSchedule({
+      peptideId: d.peptideId,
+      dose: d.dose,
+      unit: d.unit,
+      frequency: d.frequency,
+      customFrequencyDays: d.customFrequencyDays,
+      daysOfWeek: d.daysOfWeek,
+      timesPerDay: d.timesPerDay,
+      timeOfDay: d.timeOfDay,
+      startDate: proto.startDate,
+      durationWeeks: d.durationWeeks ?? proto.durationWeeks,
+      schedulePhases: d.schedulePhases,
+      protocolBreaks: proto.breaks,
+      protocolId: proto.id,
+      cycle: d.cycle,
+    })
+  );
+  const existing = await getScheduledDosesForProtocol(proto.id);
+  const preserved = new Set(existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}`));
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}`));
+  await deleteUpcomingDosesFrom(proto.id, today);
+  await saveScheduledDoses(regen, proto.owner);
+}
+
+/** The protocol as it would be after giving one peptide a cycle (or removing it with null). The course never gets
+ *  shorter than it is now, and never shorter than the cycle needs. */
+export function withCycle(proto: UserProtocol, peptideId: string, cycle: Cycle | null): UserProtocol {
+  const doses = proto.doses.map(d => {
+    if (d.peptideId !== peptideId) return d;
+    const { cycle: _old, ...rest } = d;
+    if (!cycle) return rest;
+    return { ...rest, cycle, durationWeeks: Math.max(d.durationWeeks ?? proto.durationWeeks, cycleTotalWeeks(cycle.onWeeks, cycle.offWeeks)) };
+  });
+  return { ...proto, doses, durationWeeks: Math.max(...doses.map(d => d.durationWeeks ?? proto.durationWeeks)) };
+}
+
+/** Give one peptide in a saved protocol a cycle: rebuild its upcoming doses, then store the protocol. */
+export async function applyCycleToProtocol(protocolId: string, peptideId: string, cycle: Cycle | null): Promise<void> {
+  const db = await getDB();
+  const proto = await db.get('protocols', protocolId);
+  if (!proto) throw new Error('Protocol not found');
+  const next = withCycle(proto, peptideId, cycle);
+  await rebuildUpcomingDoses(next);
+  await updateProtocol(protocolId, { doses: next.doses, durationWeeks: next.durationWeeks });
 }
 
 export async function getProtocols(status?: string): Promise<UserProtocol[]> {

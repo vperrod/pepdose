@@ -5,12 +5,12 @@ import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, CalendarDa
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
   getProtocols, deleteProtocol, updateProtocol,
-  getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
+  getScheduledDosesForProtocol, rebuildUpcomingDoses,
   getDoseLogsForProtocol, getProtocol, getHealthMarkers, getDoseLogsForPeptide,
 } from '../db/operations';
 import { getPeptideById } from '../data/peptides';
 import { getCurrentWeekGuide } from '../data/experienceTimelines';
-import { generateSchedule, phasesTotalWeeks } from '../utils/scheduleEngine';
+import { phasesTotalWeeks } from '../utils/scheduleEngine';
 import { mergeEditedCard, doseConfigToCard, type CardValue } from '../utils/cycleForm';
 import { PeptideCycleCard } from '../components/PeptideCycleCard';
 import { protocolCycle } from '../utils/cycleStatus';
@@ -244,38 +244,7 @@ export function Protocols() {
     try {
       const protoDuration = Math.max(...editDoses.map(d => d.durationWeeks ?? activeProto.durationWeeks));
 
-      // Regenerate the full schedule from the (possibly new) start date so titration
-      // week-alignment is preserved, then keep only the upcoming portion.
-      const fullDoses = editDoses.flatMap(d =>
-        generateSchedule({
-          peptideId: d.peptideId,
-          dose: d.dose,
-          unit: d.unit as 'mcg' | 'mg' | 'IU',
-          frequency: d.frequency,
-          customFrequencyDays: d.customFrequencyDays,
-          daysOfWeek: d.daysOfWeek,
-          timesPerDay: d.timesPerDay,
-          timeOfDay: d.timeOfDay,
-          startDate: editStartDate,
-          durationWeeks: d.durationWeeks ?? activeProto.durationWeeks,
-          schedulePhases: d.schedulePhases,
-          protocolBreaks: activeProto.breaks,
-          protocolId: activeProto.id,
-          cycle: d.cycle,
-        })
-      );
-
-      // Preserve any dose that already happened (logged/skipped/missed) — never rewrite history.
-      const existing = await getScheduledDosesForProtocol(activeProto.id);
-      const preserved = new Set(
-        existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}`)
-      );
-
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}`));
-
-      await deleteUpcomingDosesFrom(activeProto.id, today);
-      await saveScheduledDoses(regen, activeProto.owner);
+      await rebuildUpcomingDoses({ ...activeProto, startDate: editStartDate, doses: editDoses });
 
       await updateProtocol(activeProto.id, {
         name: editName,

@@ -15,8 +15,7 @@ const ops = vi.hoisted(() => ({
   updateProtocol: vi.fn(async () => {}),
   deleteProtocol: vi.fn(async () => {}),
   getScheduledDosesForProtocol: vi.fn(async () => [] as ScheduledDose[]),
-  deleteUpcomingDosesFrom: vi.fn(async (_id: string, _from: string) => {}),
-  saveScheduledDoses: vi.fn(async (_doses: unknown[], _owner: string) => {}),
+  rebuildUpcomingDoses: vi.fn(async (_proto: unknown) => {}),
   getDoseLogsForProtocol: vi.fn(async () => []),
   getDoseLogsForPeptide: vi.fn(async () => []),
   getHealthMarkers: vi.fn(async () => []),
@@ -144,27 +143,19 @@ describe('Protocols schedule regeneration', () => {
     });
   }
 
-  it('never rewrites a day that already has a logged dose', async () => {
+  it('rebuilds the upcoming doses from the edited protocol', async () => {
     await saveEdit([logged]);
-    const written = ops.saveScheduledDoses.mock.calls[0][0] as ScheduledDose[];
-    expect(written.some(d => d.date === TODAY && d.peptideId === 'bpc-157')).toBe(false);
+    expect((ops.rebuildUpcomingDoses.mock.calls[0][0] as UserProtocol).id).toBe('p1');
   });
 
-  it('regenerates the upcoming doses it did clear', async () => {
-    await saveEdit([logged]);
-    expect(ops.deleteUpcomingDosesFrom).toHaveBeenCalledWith('p1', TODAY);
-    expect((ops.saveScheduledDoses.mock.calls[0][0] as ScheduledDose[]).length).toBeGreaterThan(0);
-  });
-
-  it('writes no dose dated before today', async () => {
+  it('hands the rebuild the protocol owner', async () => {
     await saveEdit([]);
-    const written = ops.saveScheduledDoses.mock.calls[0][0] as ScheduledDose[];
-    expect(written.every(d => d.date >= TODAY)).toBe(true);
+    expect((ops.rebuildUpcomingDoses.mock.calls[0][0] as UserProtocol).owner).toBe('Victor');
   });
 
-  it('saves the regenerated schedule under the protocol owner', async () => {
+  it('stores the protocol after the rebuild', async () => {
     await saveEdit([]);
-    expect(ops.saveScheduledDoses.mock.calls[0][1]).toBe('Victor');
+    expect(ops.updateProtocol).toHaveBeenCalled();
   });
 });
 
