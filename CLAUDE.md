@@ -86,6 +86,14 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
     `cycleStatus()` (ON/OFF, week X of Y, next switch, 24-week strip; `protocolCycle()` falls back to
     `breaksToCycle()` for legacy breaks) feeds the Dashboard `CycleBoard`; `cycleAlerts()` +
     `scheduleCycleAlerts()` in `notifications.ts` send notices 3 days and 1 day before a switch at 09:00.
+  - **Cycle map** (`utils/cycleMap.ts`): `buildCycleMap()` turns any saved protocol (cycle, legacy `breaks`, phased
+    variant, plain course) into dated ON/OFF windows with planned/done dose counts, a one-sentence setup and a
+    status; `suggestionFor()` compares it with the peptide's typical cycle (`cycleWeeks`/`offCycleWeeks`/
+    `cyclingReason`); `reviewItems()` lists what is worth a look. UI: `CycleOverview` + `CycleTimeline` on the
+    Peptides tab, `pages/CycleDetail.tsx` (route `/cycle/:protocolId/:peptideId`, "Use suggested cycle" previews then
+    calls `applyCycleToProtocol`), Today's `CycleBoard` links into it. `rebuildUpcomingDoses()` in `db/operations.ts`
+    is the one place that regenerates upcoming doses (edit sheet and cycle apply both use it; logged/skipped/missed
+    doses are never touched). Only 3 peptides carry preset variants now, so suggestions come from the typical cycle.
   - **Breaks** (`data/protocols.ts` → `ProtocolTemplate.breaks`, `db/schema.ts` →
     `UserProtocol.breaks`): explicit off-week ranges (`{ weekStart, weekEnd,
     reason }`) where no doses are generated. Templates with break-aware cycling

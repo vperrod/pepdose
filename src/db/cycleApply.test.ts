@@ -44,6 +44,27 @@ describe('withCycle', () => {
   });
 });
 
+describe('withCycle on a stack', () => {
+  const stack = (): UserProtocol => ({
+    ...base(), id: 's', createdAt: '', updatedAt: '', durationWeeks: 8,
+    peptideIds: ['tb-500', 'bpc-157'],
+    doses: [
+      { peptideId: 'tb-500', dose: 2, unit: 'mg', frequency: 'daily', timeOfDay: 'morning' },
+      { peptideId: 'bpc-157', dose: 250, unit: 'mcg', frequency: 'daily', timeOfDay: 'morning' },
+    ],
+  });
+
+  it('keeps the other peptide at its own 8-week course', () => {
+    const next = withCycle(stack(), 'tb-500', { onWeeks: 5, offWeeks: 2 });
+    expect(next.doses[1].durationWeeks).toBe(8);
+  });
+
+  it('raises only the cycled peptide to the cycle length', () => {
+    const next = withCycle(stack(), 'tb-500', { onWeeks: 5, offWeeks: 2 });
+    expect(next.doses[0].durationWeeks).toBe(24);
+  });
+});
+
 describe('applyCycleToProtocol', () => {
   it('stores the cycle on the protocol', async () => {
     const { proto } = await seedPlainCourse();

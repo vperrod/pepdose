@@ -89,9 +89,9 @@ export async function rebuildUpcomingDoses(proto: UserProtocol): Promise<void> {
     })
   );
   const existing = await getScheduledDosesForProtocol(proto.id);
-  const preserved = new Set(existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}`));
+  const preserved = new Set(existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}|${d.time}`));
   const today = format(new Date(), 'yyyy-MM-dd');
-  const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}`));
+  const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}|${d.time}`));
   await deleteUpcomingDosesFrom(proto.id, today);
   await saveScheduledDoses(regen, proto.owner);
 }
@@ -100,7 +100,10 @@ export async function rebuildUpcomingDoses(proto: UserProtocol): Promise<void> {
  *  shorter than it is now, and never shorter than the cycle needs. */
 export function withCycle(proto: UserProtocol, peptideId: string, cycle: Cycle | null): UserProtocol {
   const doses = proto.doses.map(d => {
-    if (d.peptideId !== peptideId) return d;
+    if (d.peptideId !== peptideId) {
+      // Pin the course of the other peptides so raising the protocol length cannot stretch them.
+      return d.durationWeeks === undefined ? { ...d, durationWeeks: proto.durationWeeks } : d;
+    }
     const { cycle: _old, ...rest } = d;
     if (!cycle) return rest;
     return { ...rest, cycle, durationWeeks: Math.max(d.durationWeeks ?? proto.durationWeeks, cycleTotalWeeks(cycle.onWeeks, cycle.offWeeks)) };

@@ -4,6 +4,13 @@
 > Cross-project backlog: claude-config/os/backlog.md
 > Full context for continuing on a laptop: see `HANDOFF.md` at the repo root.
 
+## Done — cycle map (2026-11-12)
+
+- [x] `utils/cycleMap.ts` windows with dates + dose counts, suggestion vs typical cycle, review items
+- [x] Peptides tab "Cycle map" timeline, per-peptide detail page, one-tap "Use suggested cycle" (preview, then apply)
+- [x] `rebuildUpcomingDoses` / `withCycle` / `applyCycleToProtocol` in db; e2e S11
+- [ ] Not done: no batch "convert all"; counts in the overview refresh on navigation, not live
+
 ## Done — simple cycles redesign (2026-11-12, branch simple-cycles)
 
 - [x] Per-peptide `cycle {onWeeks, offWeeks}` on dose configs; `cycleToBreaks`, engine `cycle` hook (utils/cycle.ts)

@@ -22,7 +22,8 @@ export function CycleBoard({ protocols }: { protocols: UserProtocol[] }) {
       <div className="space-y-3">
         {activeProtocols.flatMap((protocol) =>
           protocol.doses.map((dose, doseIndex) => {
-            const st = buildCycleMap({ protocol, peptideId: dose.peptideId, doses: [], today }).status;
+            let st;
+            try { st = buildCycleMap({ protocol, peptideId: dose.peptideId, doses: [], today }).status; } catch { return null; } // a damaged record must not blank Today
 
             if (st.state === 'done') return null;
 

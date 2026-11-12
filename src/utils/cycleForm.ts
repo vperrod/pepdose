@@ -195,7 +195,9 @@ export function cardSummary(card: CardValue): string {
     else daysPart = '';
   } else {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    daysPart = days.map(d => dayNames[d]).join(' & ');
+    const sorted = [...days].sort((a, b) => a - b);
+    daysPart = sorted.join() === '1,2,3,4,5' ? 'Weekdays'
+      : sorted.map(d => dayNames[d]).join(sorted.length === 2 ? ' & ' : ', ');
   }
 
   const dosePart = `${card.dose} ${card.unit}`;

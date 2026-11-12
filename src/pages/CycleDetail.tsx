@@ -30,18 +30,26 @@ export function CycleDetail() {
     setLoaded(true);
   }, [protocolId]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { setPending(null); setError(null); }, [protocolId, peptideId]);
 
   const view = useMemo(() => {
     if (!protocol || !protocol.doses.some(d => d.peptideId === peptideId)) return null;
-    const map = buildCycleMap({ protocol, peptideId, doses, today });
-    const peptide = getPeptideById(peptideId);
-    const suggestion = suggestionFor(map, peptide);
-    return { map, suggestion, items: reviewItems(map, protocol, suggestion) };
+    try {
+      const map = buildCycleMap({ protocol, peptideId, doses, today });
+      const suggestion = suggestionFor(map, getPeptideById(peptideId));
+      return { map, suggestion, items: reviewItems(map, protocol, suggestion) };
+    } catch {
+      return null; // damaged record: show the "cannot be shown" message instead of crashing
+    }
   }, [protocol, peptideId, doses, today]);
 
   const preview = useMemo(() => {
     if (!protocol || !pending) return null;
-    return buildCycleMap({ protocol: withCycle(protocol, peptideId, pending.cycle), peptideId, doses, today });
+    try {
+      return buildCycleMap({ protocol: withCycle(protocol, peptideId, pending.cycle), peptideId, doses, today });
+    } catch {
+      return null;
+    }
   }, [protocol, pending, peptideId, doses, today]);
 
   async function apply() {
@@ -51,7 +59,7 @@ export function CycleDetail() {
     try {
       await applyCycleToProtocol(protocolId, peptideId, pending.cycle);
       setPending(null);
-      await load();
+      await load().catch(() => {}); // the cycle is saved; a failed refresh must not read as a failed apply
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not apply the cycle. Please try again.');
     } finally {
@@ -69,7 +77,7 @@ export function CycleDetail() {
     return (
       <div className="safe-top px-5 pt-4 pb-28">
         <div className="flex items-center gap-3 mb-5">{back}<h1 className="text-xl font-bold">Cycle</h1></div>
-        <p className="text-sm text-text-muted">This protocol or peptide no longer exists.</p>
+        <p className="text-sm text-text-muted">This protocol or peptide no longer exists, or its data cannot be read.</p>
       </div>
     );
   }
@@ -79,7 +87,7 @@ export function CycleDetail() {
   const st = map.status;
   const adoptable = cycleFromSuggestion(suggestion);
   const canAdopt = !!adoptable && suggestion.verdict !== 'matches';
-  const canRemoveOff = suggestion.verdict === 'extra-off' && map.source === 'cycle';
+  const canRemoveOff = suggestion.verdict === 'extra-off' && map.source === 'cycle' && !protocol?.breaks?.length;
 
   return (
     <div className="safe-top px-5 pt-4 pb-28">

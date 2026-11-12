@@ -15,7 +15,7 @@ export function CycleOverview({ protocols }: { protocols: UserProtocol[] }) {
   const live = useMemo(() => protocols.filter(p => p.status === 'active' || p.status === 'paused'), [protocols]);
   const [doses, setDoses] = useState<ScheduledDose[]>([]);
 
-  const key = live.map(p => p.id).join(',');
+  const key = live.map(p => `${p.id}:${p.updatedAt}`).join(',');
   useEffect(() => {
     let cancelled = false;
     getScheduledDosesForProtocols(live.map(p => p.id)).then(d => { if (!cancelled) setDoses(d); }).catch(() => {});

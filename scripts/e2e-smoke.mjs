@@ -230,7 +230,7 @@ await scenario('S9 one-screen add: 5 weeks on / 3 off skips weeks 6-8 and shows 
 
 await scenario('S10 edit sheet: Weeks off to 0 removes the cycle and keeps the 24-week course', async () => {
   await page.goto(BASE + '/protocols', { waitUntil: 'networkidle' });
-  await page.getByText(/^KLOW/).first().click();
+  await page.getByRole('button', { name: /^KLOW[\s\S]*active/ }).first().click(); // the list card, not the cycle-map row
   await page.getByRole('button', { name: 'Manage' }).click();
   await page.getByText(/^Edit Protocol/).click();
   if ((await page.getByLabel('Weeks on').inputValue()) !== '5') throw new Error('edit sheet did not load Weeks on 5');

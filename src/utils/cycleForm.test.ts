@@ -290,3 +290,15 @@ describe('mergeEditedCard', () => {
     expect(mergeEditedCard(saved, before, { ...before, offWeeks: 0 }).durationWeeks).toBe(24);
   });
 });
+
+describe('cardSummary day names', () => {
+  const card = (daysOfWeek: number[]) => ({ ...defaultCard(getPeptideById('kpv')!), frequency: 'weekly_days' as const, daysOfWeek, onWeeks: 4, offWeeks: 0 });
+
+  it('calls Monday to Friday weekdays', () => {
+    expect(cardSummary(card([1, 2, 3, 4, 5]))).toMatch(/^Weekdays,/);
+  });
+
+  it('separates three days with commas', () => {
+    expect(cardSummary(card([1, 3, 5]))).toMatch(/^Mon, Wed, Fri,/);
+  });
+});
