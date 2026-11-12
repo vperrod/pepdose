@@ -1,11 +1,11 @@
 import { useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, CalendarDays, Plus, BarChart3, Menu } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Plus, Syringe, Menu } from 'lucide-react';
 
 const tabs = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, isFab: false },
+  { path: '/', label: 'Today', icon: LayoutDashboard, isFab: false },
   { path: '/calendar', label: 'Calendar', icon: CalendarDays, isFab: false },
   { path: '/log', label: 'Log', icon: Plus, isFab: true },
-  { path: '/insights', label: 'Insights', icon: BarChart3, isFab: false },
+  { path: '/protocols', label: 'Peptides', icon: Syringe, isFab: false },
   { path: '/more', label: 'More', icon: Menu, isFab: false },
 ];
 

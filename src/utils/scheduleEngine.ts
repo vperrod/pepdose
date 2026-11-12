@@ -1,4 +1,4 @@
-import { addDays, addWeeks, format, eachDayOfInterval, isBefore, parseISO } from 'date-fns';
+import { addDays, addWeeks, differenceInCalendarDays, format, eachDayOfInterval, isBefore, parseISO } from 'date-fns';
 import { type Peptide, type SchedulePhase, getPeptideById } from '../data/peptides';
 import type { ProtocolBreak } from '../data/protocols';
 import { type Cycle, cycleToBreaks } from './cycle';
@@ -46,6 +46,12 @@ function suggestSite(index: number): string {
   return SITE_LABELS[index % SITE_LABELS.length];
 }
 
+/** 1-based week of `day` within a protocol starting on `start`. Counts calendar days so a DST change
+ *  (a 23- or 25-hour day) cannot move a dose into the wrong week. */
+export function weekNumberOf(day: Date, start: Date): number {
+  return Math.floor(differenceInCalendarDays(day, start) / 7) + 1;
+}
+
 /** Returns true if the given 1-based week number falls within any protocol break. */
 function isInBreak(weekNum: number, breaks?: ProtocolBreak[]): boolean {
   if (!breaks || breaks.length === 0) return false;
@@ -78,7 +84,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
   if (config.frequency === 'daily') {
     const days = eachDayOfInterval({ start: startDate, end: addDays(endDate, -1) });
     for (const day of days) {
-      const weekNum = Math.floor((day.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekNum = weekNumberOf(day, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) continue;
       const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
       const currentUnit = hasTitration ? (peptide!.dosing.titration![0].unit) : config.unit;
@@ -111,7 +117,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
   } else if (config.frequency === 'eod') {
     let current = startDate;
     while (isBefore(current, endDate)) {
-      const weekNum = Math.floor((current.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekNum = weekNumberOf(current, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) { current = addDays(current, 2); continue; }
       const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
 
@@ -134,7 +140,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
   } else if (config.frequency === 'weekly') {
     let current = startDate;
     while (isBefore(current, endDate)) {
-      const weekNum = Math.floor((current.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekNum = weekNumberOf(current, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) { current = addDays(current, 7); continue; }
       const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
       const currentUnit = hasTitration ? (peptide!.dosing.titration![0].unit) : config.unit;
@@ -160,7 +166,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
   } else if (config.frequency === 'biweekly') {
     let current = startDate;
     while (isBefore(current, endDate)) {
-      const weekNum = Math.floor((current.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekNum = weekNumberOf(current, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) { current = addDays(current, 14); continue; }
       doses.push({
         id: generateId(),
@@ -183,7 +189,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
     const days = eachDayOfInterval({ start: startDate, end: addDays(endDate, -1) });
     for (const day of days) {
       if (day.getDay() === 0 || day.getDay() === 6) continue;
-      const weekNum = Math.floor((day.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekNum = weekNumberOf(day, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) continue;
       doses.push({
         id: generateId(),
@@ -204,7 +210,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
     const days = eachDayOfInterval({ start: startDate, end: addDays(endDate, -1) });
     for (const day of days) {
       if (!config.daysOfWeek.includes(day.getDay())) continue;
-      const weekNum = Math.floor((day.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekNum = weekNumberOf(day, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) continue;
       const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
       const currentUnit = hasTitration ? (peptide!.dosing.titration![0].unit) : config.unit;
@@ -229,7 +235,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
   } else if (config.frequency === 'custom' && config.customFrequencyDays && config.customFrequencyDays > 0) {
     let current = startDate;
     while (isBefore(current, endDate)) {
-      const weekNum = Math.floor((current.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      const weekNum = weekNumberOf(current, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) { current = addDays(current, config.customFrequencyDays); continue; }
       doses.push({
         id: generateId(),
@@ -273,7 +279,6 @@ function getTitrationDose(peptide: Peptide, weekNumber: number, startDose?: numb
   return base;
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // Generate doses for a tapered protocol: walk day by day, and for each day emit a
 // dose only if the active phase's cadence lands on it. Weeks with no phase are off.
@@ -291,8 +296,8 @@ function generatePhasedSchedule(config: ScheduleConfig, peptide: Peptide | undef
   let doseIndex = 0;
 
   for (const day of days) {
-    const dayOffset = Math.round((day.getTime() - startDate.getTime()) / MS_PER_DAY);
-    const weekNum = Math.floor(dayOffset / 7) + 1;
+    const dayOffset = differenceInCalendarDays(day, startDate);
+    const weekNum = weekNumberOf(day, startDate);
     // Protocol-level breaks override even active phases — weeks in a break get no doses.
     if (isInBreak(weekNum, config.protocolBreaks)) continue;
     const phase = phases.find(p => weekNum >= p.weekStart && weekNum <= p.weekEnd);

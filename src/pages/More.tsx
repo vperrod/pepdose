@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router';
-import { Package, Calculator, BookOpen, Settings, Download, Shield, Syringe, ClipboardList, LineChart } from 'lucide-react';
+import { Package, Calculator, BookOpen, Settings, Download, Shield, BarChart3, ClipboardList, LineChart } from 'lucide-react';
 
 const menuItems = [
-  { icon: Syringe, label: 'Protocols', desc: 'Create and manage cycles', color: '#00d4aa', path: '/protocols' },
+  { icon: BarChart3, label: 'Insights', desc: 'Active levels, symptoms, injection map', color: '#00d4aa', path: '/insights' },
   { icon: LineChart, label: 'Progress & Health', desc: 'Weight, body measurements, markers', color: '#ec4899', path: '/health-markers' },
   { icon: ClipboardList, label: 'Dose History', desc: 'Full injection log', color: '#6366f1', path: '/history' },
   { icon: Package, label: 'Vial Inventory', desc: 'Track vials, doses remaining', color: '#22c55e', path: '/inventory' },

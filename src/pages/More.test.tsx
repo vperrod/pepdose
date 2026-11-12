@@ -28,4 +28,10 @@ describe('More menu', () => {
     fireEvent.click(screen.getByText('Settings'));
     expect(navigate).toHaveBeenCalledWith('/settings');
   });
+
+  it('opens insights', () => {
+    render(<More />);
+    fireEvent.click(screen.getByText('Insights'));
+    expect(navigate).toHaveBeenCalledWith('/insights');
+  });
 });

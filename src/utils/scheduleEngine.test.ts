@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { generateSchedule, extendSchedule, phasesTotalWeeks, summarizePhases } from './scheduleEngine';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { parseISO } from 'date-fns';
+import { generateSchedule, weekNumberOf, extendSchedule, phasesTotalWeeks, summarizePhases } from './scheduleEngine';
 import { getPeptideById, PEPTIDES } from '../data/peptides';
 import type { ScheduledDose } from '../db/schema';
 
@@ -380,4 +381,19 @@ describe('every playbook peptide generates a schedule from its own defaults', ()
       expect(doses.length).toBeGreaterThan(0);
     });
   }
+});
+
+describe('weekNumberOf across a DST change', () => {
+  const previousTz = process.env.TZ;
+  beforeAll(() => { process.env.TZ = 'America/Los_Angeles'; });
+  afterAll(() => { process.env.TZ = previousTz; });
+
+  it('puts the day exactly 7 days after a pre-DST start in week 2', () => {
+    // US clocks spring forward 2026-03-08: that 7-day span is only 167 hours long.
+    expect(weekNumberOf(parseISO('2026-03-08'), parseISO('2026-03-01'))).toBe(2);
+  });
+
+  it('still reports week 1 for the start day', () => {
+    expect(weekNumberOf(parseISO('2026-03-01'), parseISO('2026-03-01'))).toBe(1);
+  });
 });
