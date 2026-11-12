@@ -15,6 +15,7 @@ import { withoutInactiveUpcoming } from '../utils/doseVisibility';
 import { UserBadge } from '../components/UserBadge';
 import { useOwnerFilter } from '../context/ViewFilterContext';
 import { DisclaimerFooter } from '../components/DisclaimerFooter';
+import { CycleBoard } from '../components/CycleBoard';
 
 interface DashboardDose extends ScheduledDose {
   peptideName: string;
@@ -282,6 +283,10 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      <div className="mb-6">
+        <CycleBoard protocols={applyOwnerFilter(protocols)} />
+      </div>
 
       {(totalCount > 0 || visibleAdhoc.length > 0) && (
         <div className="mb-5 stagger-item" style={{ animationDelay: '0.1s' }}>

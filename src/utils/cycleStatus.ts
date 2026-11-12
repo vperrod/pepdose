@@ -181,11 +181,31 @@ function getStripState(
 ): boolean[] {
   const stripWeeks = Math.min(durationWeeks, 24);
   const strip: boolean[] = [];
-  
+
   for (let w = 1; w <= stripWeeks; w++) {
     const isOff = isInBreak(w, breaks);
     strip.push(!isOff); // true = ON
   }
-  
+
   return strip;
+}
+
+export interface CycleAlert { date: string; title: string; body: string } // date = yyyy-MM-dd to notify
+
+const ALERT_TITLE = { off: 'goes off in', on: 'is back on in', end: 'course ends in' } as const;
+const ALERT_BODY = { off: 'Your off weeks start on', on: 'Your on weeks start on', end: 'Your course ends on' } as const;
+
+/** Notices 3 days and 1 day before the next on/off switch (or course end). Past ones are dropped. */
+export function cycleAlerts(status: CycleStatus, peptideName: string): CycleAlert[] {
+  const next = status.nextChange;
+  if (!next || next.to === 'start') return [];
+  const to: 'off' | 'on' | 'end' = next.to;
+  const changeDate = parseISO(next.date);
+  return ([3, 1] as const)
+    .filter(n => next.daysUntil >= n)
+    .map(n => ({
+      date: format(addDays(changeDate, -n), 'yyyy-MM-dd'),
+      title: peptideName + ' ' + ALERT_TITLE[to] + ' ' + n + (n === 1 ? ' day' : ' days'),
+      body: ALERT_BODY[to] + ' ' + next.date + '.',
+    }));
 }

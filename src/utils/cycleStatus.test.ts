@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cycleStatus, protocolCycle } from './cycleStatus';
+import { cycleStatus, protocolCycle, cycleAlerts, type CycleStatus } from './cycleStatus';
 
 describe('cycleStatus', () => {
   // Test 1: today 2026-01-05 (Monday) with cycle {onWeeks:8,offWeeks:8}, duration 32
@@ -181,5 +181,120 @@ describe('cycleStatus', () => {
     expect(result.cycle?.onWeeks).toBe(4);
     expect(result.cycle?.offWeeks).toBe(2);
     expect(result.durationWeeks).toBe(24);
+  });
+});
+describe('cycleAlerts', () => {
+  it('daysUntil 10 -> 2 alerts with dates changeDate-3 and changeDate-1', () => {
+    const status: CycleStatus = {
+      state: 'on',
+      weekNum: 1,
+      totalWeeks: 32,
+      weekInPhase: 1,
+      phaseWeeks: 8,
+      nextChange: {
+        date: '2026-03-02',
+        to: 'off',
+        daysUntil: 10
+      },
+      strip: []
+    };
+    const alerts = cycleAlerts(status, 'Test Peptide');
+    expect(alerts.length).toBe(2);
+    expect(alerts.some(a => a.date === '2026-02-27')).toBe(true);
+    expect(alerts.some(a => a.date === '2026-03-01')).toBe(true);
+    expect(alerts.some(a => a.title.includes('goes off in 3 days'))).toBe(true);
+    expect(alerts.some(a => a.title.includes('goes off in 1 day'))).toBe(true);
+  });
+
+  it('daysUntil 2 -> only the 1-day alert', () => {
+    const status: CycleStatus = {
+      state: 'on',
+      weekNum: 1,
+      totalWeeks: 32,
+      weekInPhase: 1,
+      phaseWeeks: 8,
+      nextChange: {
+        date: '2026-03-02',
+        to: 'off',
+        daysUntil: 2
+      },
+      strip: []
+    };
+    const alerts = cycleAlerts(status, 'Test Peptide');
+    expect(alerts.length).toBe(1);
+    expect(alerts[0].date).toBe('2026-03-01');
+    expect(alerts[0].title).toContain('goes off in 1 day');
+  });
+
+  it('daysUntil 0 -> none', () => {
+    const status: CycleStatus = {
+      state: 'off',
+      weekNum: 9,
+      totalWeeks: 32,
+      weekInPhase: 1,
+      phaseWeeks: 8,
+      nextChange: {
+        date: '2026-03-02',
+        to: 'off',
+        daysUntil: 0
+      },
+      strip: []
+    };
+    const alerts = cycleAlerts(status, 'Test Peptide');
+    expect(alerts.length).toBe(0);
+  });
+
+  it('to "start" -> none', () => {
+    const status: CycleStatus = {
+      state: 'upcoming',
+      weekNum: 0,
+      totalWeeks: 32,
+      weekInPhase: 0,
+      phaseWeeks: 0,
+      nextChange: {
+        date: '2026-01-05',
+        to: 'start',
+        daysUntil: 1
+      },
+      strip: []
+    };
+    const alerts = cycleAlerts(status, 'Test Peptide');
+    expect(alerts.length).toBe(0);
+  });
+
+  it('to "off" title contains "goes off in 3 days"', () => {
+    const status: CycleStatus = {
+      state: 'on',
+      weekNum: 1,
+      totalWeeks: 32,
+      weekInPhase: 1,
+      phaseWeeks: 8,
+      nextChange: {
+        date: '2026-03-02',
+        to: 'off',
+        daysUntil: 3
+      },
+      strip: []
+    };
+    const alerts = cycleAlerts(status, 'Test Peptide');
+    expect(alerts.some(a => a.title.includes('goes off in 3 days'))).toBe(true);
+  });
+
+  it('to "on" title contains "is back on in 1 day"', () => {
+    const status: CycleStatus = {
+      state: 'off',
+      weekNum: 9,
+      totalWeeks: 32,
+      weekInPhase: 1,
+      phaseWeeks: 8,
+      nextChange: {
+        date: '2026-04-27',
+        to: 'on',
+        daysUntil: 1
+      },
+      strip: []
+    };
+    const alerts = cycleAlerts(status, 'Test Peptide');
+    expect(alerts.some(a => a.title.includes('is back on in 1 day'))).toBe(true);
   });
 });
