@@ -1,5 +1,6 @@
 import type { Peptide, FrequencyType, TimeOfDay, SchedulePhase } from '../data/peptides';
 import type { UserProtocol, ReconMix } from '../db/schema';
+import type { Cycle } from './cycle';
 import { defaultRecon } from './penClicks';
 import { summarizePhases, phasesTotalWeeks } from './scheduleEngine';
 
@@ -214,4 +215,31 @@ export function cycleEditDuration(
   if (phased) return existing ?? onWeeks;
   if (offWeeks >= 1) return cycleTotalWeeks(onWeeks, offWeeks);
   return changed === 'on' ? onWeeks : existing ?? onWeeks;
+}
+
+/** Inverse of cardToDoseConfig for editing a saved dose. `legacy` is the cycle derived from a protocol's
+ *  old regular `breaks`; a saved `cycle` wins. Without either, the whole course counts as weeks on. */
+export function doseConfigToCard(d: DoseConfig, legacy?: Cycle | null): CardValue {
+  const frequency = d.frequency as FrequencyType;
+  const everyDay = [0, 1, 2, 3, 4, 5, 6];
+  const daysOfWeek = d.daysOfWeek
+    ?? (frequency === 'daily' ? everyDay : frequency === '5x_week' ? [1, 2, 3, 4, 5] : []);
+  const cycle = d.cycle ?? legacy ?? null;
+  return {
+    peptideId: d.peptideId,
+    dose: d.dose,
+    unit: d.unit,
+    timeOfDay: d.timeOfDay as TimeOfDay,
+    frequency,
+    daysOfWeek,
+    customFrequencyDays: d.customFrequencyDays,
+    timesPerDay: d.timesPerDay ?? 1,
+    onWeeks: cycle?.onWeeks ?? d.durationWeeks ?? 1,
+    offWeeks: cycle?.offWeeks ?? 0,
+    schedulePhases: d.schedulePhases,
+    variantId: d.variantId,
+    customSchedule: d.customSchedule,
+    recon: d.recon,
+    penColor: d.penColor,
+  };
 }

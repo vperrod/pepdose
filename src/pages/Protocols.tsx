@@ -1,24 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { differenceInWeeks, parseISO, format } from 'date-fns';
-import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, TrendingUp, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle, Sparkles } from 'lucide-react';
+import { Plus, Beaker, Pencil, Trash2, Pause, Play, X, AlertTriangle, CalendarDays, Settings2, CheckCircle2, Circle, MapPin, ArrowUpCircle, Sparkles } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
   getProtocols, deleteProtocol, updateProtocol,
   getScheduledDosesForProtocol, deleteUpcomingDosesFrom, saveScheduledDoses,
   getDoseLogsForProtocol, getProtocol, getHealthMarkers, getDoseLogsForPeptide,
 } from '../db/operations';
-import { getPeptideById, type Peptide } from '../data/peptides';
+import { getPeptideById } from '../data/peptides';
 import { getCurrentWeekGuide } from '../data/experienceTimelines';
-import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
-import { cycleEditDuration } from '../utils/cycleForm';
+import { generateSchedule, phasesTotalWeeks } from '../utils/scheduleEngine';
+import { cycleEditDuration, cardToDoseConfig, doseConfigToCard, type CardValue } from '../utils/cycleForm';
+import { PeptideCycleCard } from '../components/PeptideCycleCard';
 import { protocolCycle } from '../utils/cycleStatus';
 import { DoseActionSheet } from '../components/DoseActionSheet';
 import { AdhocLogSheet } from '../components/AdhocLogSheet';
-import { DecimalInput } from '../components/DecimalInput';
-import { ReconMixFields } from '../components/ReconMixFields';
-import { PenColorField } from '../components/PenColorField';
-import { WeekdayPicker } from '../components/WeekdayPicker';
 import { defaultRecon } from '../utils/penClicks';
 import { findDuplicateProtocols, type DuplicateGroup } from '../utils/duplicateProtocols';
 import type { UserProtocol, ScheduledDose, DoseLog, HealthMarker } from '../db/schema';
@@ -53,21 +50,7 @@ function frequencyLabel(d: { frequency: string; daysOfWeek?: number[] }): string
   return FREQUENCY_LABELS[d.frequency] ?? d.frequency;
 }
 
-const TIME_LABELS: Record<string, string> = {
-  morning_fasting: 'Morning (fasting)',
-  morning: 'Morning',
-  evening: 'Evening',
-  pre_bed: 'Before bed',
-  before_activity: 'Before activity',
-  any: 'Any time',
-};
-
 type SheetMode = 'journey' | 'actions' | 'edit' | 'delete';
-
-// Sentinel for the "Protocol" variant dropdown: lets a peptide with canned
-// phased variants (NAD+, MOTS-c, ...) drop into the flat frequency + weekday
-// picker instead, since those variants otherwise hide it entirely.
-const CUSTOM_SCHEDULE = '__custom__';
 
 export function Protocols() {
   const navigate = useNavigate();
@@ -311,31 +294,12 @@ export function Protocols() {
     }
   }
 
-  function updateEditDose(index: number, updates: Partial<UserProtocol['doses'][0]>) {
-    setEditDoses(prev => prev.map((d, i) => i === index ? { ...d, ...updates } : d));
-  }
-
-  function applyVariantEdit(index: number, peptide: Peptide | undefined, variantId: string) {
-    if (variantId === CUSTOM_SCHEDULE) {
-      updateEditDose(index, {
-        variantId: undefined,
-        schedulePhases: undefined,
-        durationWeeks: undefined,
-        frequency: 'weekly_days',
-        daysOfWeek: [],
-        customSchedule: true,
-      });
-      return;
-    }
-    const variant = peptide?.dosing.protocolVariants?.find(v => v.id === variantId);
-    if (!variant) return;
-    updateEditDose(index, {
-      variantId: variant.id,
-      schedulePhases: variant.phases,
-      durationWeeks: phasesTotalWeeks(variant.phases),
-      dose: variant.doseOverride ?? peptide?.dosing.standard ?? 0,
-      customSchedule: false,
-    });
+  function handleCardChange(index: number, before: CardValue, next: CardValue) {
+    const durationWeeks = cycleEditDuration(
+      next.onWeeks, next.offWeeks, editDoses[index]?.durationWeeks,
+      next.onWeeks !== before.onWeeks ? 'on' : 'off', !!next.schedulePhases?.length,
+    );
+    setEditDoses(prev => prev.map((d, i) => i === index ? { ...cardToDoseConfig(next), durationWeeks } : d));
   }
 
   if (loading) {
@@ -857,183 +821,20 @@ export function Protocols() {
 
                   {editDoses.map((dose, idx) => {
                     const pep = getPeptideById(dose.peptideId);
-                    const color = CATEGORY_COLORS[pep?.category ?? 'healing'] ?? '#00d4aa';
-                    const hasTitration = !!pep?.dosing.titration && pep.dosing.titration.length > 0;
-                    const variants = pep?.dosing.protocolVariants;
-                    const isPhased = !!variants?.length;
-                    const usingVariant = !!dose.schedulePhases?.length;
-                    const activeVariant = variants?.find(v => v.id === dose.variantId);
+                    if (!pep) return null;
+                    const card = doseConfigToCard(dose, protocolCycle(activeProto!, dose.peptideId).cycle);
                     return (
-                      <div key={dose.peptideId} className="card-glass p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: color + '22' }}
-                          >
-                            <Beaker className="w-3.5 h-3.5" style={{ color }} />
-                          </div>
-                          <span className="font-semibold text-sm">{pep?.name ?? dose.peptideId}</span>
-                        </div>
-
-                        {hasTitration && (
-                          <div className="flex items-center gap-2 text-xs text-secondary bg-secondary-dim rounded-lg px-3 py-2 mb-3">
-                            <TrendingUp className="w-4 h-4 shrink-0" />
-                            Auto-titration — dose steps up automatically. Length still applies.
-                          </div>
-                        )}
-
-                        {isPhased && (
-                          <div className="mb-3">
-                            <label className="text-xs text-text-muted block mb-1">Protocol</label>
-                            <select
-                              value={usingVariant ? (dose.variantId ?? variants![0].id) : CUSTOM_SCHEDULE}
-                              onChange={e => applyVariantEdit(idx, pep, e.target.value)}
-                              className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
-                            >
-                              <option value={CUSTOM_SCHEDULE}>Custom (set your own schedule)</option>
-                              {variants!.map(v => (
-                                <option key={v.id} value={v.id}>{v.name}</option>
-                              ))}
-                            </select>
-                            {activeVariant && (
-                              <div className="mt-2 text-[11px] text-text-muted space-y-1">
-                                <p className="text-secondary font-medium">{summarizePhases(activeVariant.phases)}</p>
-                                <p>{activeVariant.description}</p>
-                                {activeVariant.source && (
-                                  <a href={activeVariant.source} target="_blank" rel="noreferrer" className="text-primary underline">
-                                    source
-                                  </a>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs text-text-muted block mb-1">Dose</label>
-                            <div className="flex">
-                              <DecimalInput
-                                value={dose.dose}
-                                onChange={v => updateEditDose(idx, { dose: v })}
-                                className="flex-1 bg-bg-raised border border-border rounded-l-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
-                                min={0}
-                              />
-                              <select
-                                value={dose.unit}
-                                onChange={e => updateEditDose(idx, { unit: e.target.value as 'mcg' | 'mg' | 'IU' })}
-                                className="bg-bg-raised border border-l-0 border-border rounded-r-lg px-2 py-2 text-xs text-text-secondary"
-                              >
-                                <option value="mcg">mcg</option>
-                                <option value="mg">mg</option>
-                                <option value="IU">IU</option>
-                              </select>
-                            </div>
-                          </div>
-                          {!usingVariant && (
-                            <div>
-                              <label className="text-xs text-text-muted block mb-1">Frequency</label>
-                              <select
-                                value={dose.frequency}
-                                onChange={e => updateEditDose(idx, { frequency: e.target.value })}
-                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
-                              >
-                                {Object.entries(FREQUENCY_LABELS).map(([k, v]) => (
-                                  <option key={k} value={k}>{v}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                          <div>
-                            <label className="text-xs text-text-muted block mb-1">Time</label>
-                            <select
-                              value={dose.timeOfDay}
-                              onChange={e => updateEditDose(idx, { timeOfDay: e.target.value })}
-                              className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
-                            >
-                              {Object.entries(TIME_LABELS).map(([k, v]) => (
-                                <option key={k} value={k}>{v}</option>
-                              ))}
-                            </select>
-                          </div>
-                          {(() => {
-                            const legacy = protocolCycle(activeProto!, dose.peptideId).cycle;
-                            const current = dose.cycle ?? legacy;
-                            const onWeeks = current?.onWeeks ?? dose.durationWeeks ?? 1;
-                            const offWeeks = current?.offWeeks ?? 0;
-                            const hasIrregularBreaks = !current && !!activeProto?.breaks?.length;
-                            const setCycle = (on: number, off: number, changed: 'on' | 'off') => updateEditDose(idx, {
-                              cycle: off >= 1 ? { onWeeks: on, offWeeks: off } : undefined,
-                              durationWeeks: cycleEditDuration(on, off, dose.durationWeeks, changed, !!dose.schedulePhases?.length),
-                            });
-                            return (
-                              <>
-                                <div>
-                                  <label htmlFor={`edit-on-${idx}`} className="text-xs text-text-muted block mb-1">Weeks on</label>
-                                  <input id={`edit-on-${idx}`} type="number" min={1} value={onWeeks}
-                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) return; setCycle(n, offWeeks, 'on'); }}
-                                    className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none" />
-                                </div>
-                                <div>
-                                  <label htmlFor={`edit-off-${idx}`} className="text-xs text-text-muted block mb-1">Weeks off</label>
-                                  <input id={`edit-off-${idx}`} type="number" min={0} value={offWeeks}
-                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 0) return; setCycle(onWeeks, n, 'off'); }}
-                                    className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none" />
-                                </div>
-                                {hasIrregularBreaks && (
-                                  <p className="col-span-2 text-[11px] text-text-muted">
-                                    This protocol has custom off weeks from a template. Setting Weeks off replaces them.
-                                  </p>
-                                )}
-                              </>
-                            );
-                          })()}
-                          {dose.frequency === 'daily' && !usingVariant && (
-                            <div>
-                              <label className="text-xs text-text-muted block mb-1">Times/day</label>
-                              <select
-                                value={dose.timesPerDay ?? 1}
-                                onChange={e => updateEditDose(idx, { timesPerDay: parseInt(e.target.value) })}
-                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm"
-                              >
-                                <option value={1}>1x</option>
-                                <option value={2}>2x</option>
-                                <option value={3}>3x</option>
-                              </select>
-                            </div>
-                          )}
-                          {dose.frequency === 'custom' && !usingVariant && (
-                            <div>
-                              <label className="text-xs text-text-muted block mb-1">Every N days</label>
-                              <input
-                                type="number"
-                                min={1}
-                                value={dose.customFrequencyDays ?? 3}
-                                onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) return; updateEditDose(idx, { customFrequencyDays: n }); }}
-                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {dose.frequency === 'weekly_days' && !usingVariant && (
-                          <WeekdayPicker
-                            value={dose.daysOfWeek}
-                            onChange={days => updateEditDose(idx, { daysOfWeek: days })}
-                          />
-                        )}
-
-                        <ReconMixFields
-                          value={dose.recon}
-                          dose={dose.dose}
-                          unit={dose.unit}
-                          onChange={mix => updateEditDose(idx, { recon: mix })}
+                      <div key={dose.peptideId}>
+                        <PeptideCycleCard
+                          value={card}
+                          peptide={pep}
+                          onChange={next => handleCardChange(idx, card, next)}
                         />
-
-                        <PenColorField
-                          value={dose.penColor}
-                          onChange={color => updateEditDose(idx, { penColor: color })}
-                        />
+                        {!card.offWeeks && !!activeProto?.breaks?.length && !dose.cycle && !protocolCycle(activeProto, dose.peptideId).cycle && (
+                          <p className="text-[11px] text-text-muted mt-1">
+                            This protocol has custom off weeks from a template. Setting Weeks off replaces them.
+                          </p>
+                        )}
                       </div>
                     );
                   })}

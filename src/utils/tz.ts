@@ -7,17 +7,18 @@
  * This resolves the IANA zone's UTC offset for that instant and builds the
  * correct absolute timestamp.
  *
- * Falls back to naive local interpretation if the timezone is unknown.
+ * An unknown timezone is treated as UTC.
  */
 export function zonedTimeToUtc(dateStr: string, timeStr: string, timeZone: string): number {
   const [y, m, d] = dateStr.split('-').map(Number);
   const [hh, mm] = timeStr.split(':').map(Number);
   if (!y || !m || !d || Number.isNaN(hh) || Number.isNaN(mm)) return NaN;
 
-  // Build the wall-clock time as if it were local, then shift by the zone offset.
-  const naive = new Date(y, m - 1, d, hh, mm, 0, 0);
-  const offsetMs = tzOffsetMs(naive.getTime(), timeZone);
-  return naive.getTime() - offsetMs;
+  // Wall-clock time expressed as if it were UTC, independent of the host's own timezone.
+  const wallAsUtc = Date.UTC(y, m - 1, d, hh, mm, 0, 0);
+  // Offset taken at the wall-clock instant: the app's tested DST convention (a skipped local time maps to the
+  // standard-time reading, see notifications.test.ts).
+  return wallAsUtc - tzOffsetMs(wallAsUtc, timeZone);
 }
 
 /** UTC offset (ms) that `timeZone` has at the given UTC instant. */

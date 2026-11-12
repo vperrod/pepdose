@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getPeptideById } from '../data/peptides';
-import { defaultCard, daysToFrequency, cycleTotalWeeks, cardToDoseConfig, cycleStrip, cardSummary, cycleEditDuration } from './cycleForm';
+import { defaultCard, daysToFrequency, cycleTotalWeeks, cardToDoseConfig, cycleStrip, cardSummary, cycleEditDuration, doseConfigToCard } from './cycleForm';
 
 describe('cycleForm utilities', () => {
   // Test defaultCard with real peptides from the data
@@ -222,5 +222,34 @@ describe('cardToDoseConfig with a phased variant', () => {
       schedulePhases: [{ weekStart: 1, weekEnd: 12, frequency: 'daily' as const }],
     };
     expect(cardToDoseConfig(card).durationWeeks).toBe(12);
+  });
+});
+
+describe('doseConfigToCard', () => {
+  const base = { peptideId: 'kpv', dose: 200, unit: 'mcg' as const, frequency: 'daily', timeOfDay: 'morning' };
+
+  it('round-trips a card with a cycle', () => {
+    const card = { ...defaultCard(getPeptideById('kpv')!), onWeeks: 5, offWeeks: 3 };
+    expect(doseConfigToCard(cardToDoseConfig(card))).toMatchObject({ onWeeks: 5, offWeeks: 3, dose: card.dose });
+  });
+
+  it('uses the legacy cycle when the dose has none', () => {
+    expect(doseConfigToCard({ ...base, durationWeeks: 24 }, { onWeeks: 8, offWeeks: 8 })).toMatchObject({ onWeeks: 8, offWeeks: 8 });
+  });
+
+  it('treats a plain finite course as weeks on with no off weeks', () => {
+    expect(doseConfigToCard({ ...base, durationWeeks: 12 })).toMatchObject({ onWeeks: 12, offWeeks: 0 });
+  });
+
+  it('gives a daily dose every weekday chip', () => {
+    expect(doseConfigToCard(base).daysOfWeek).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('gives a 5x_week dose Monday to Friday', () => {
+    expect(doseConfigToCard({ ...base, frequency: '5x_week' }).daysOfWeek).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('prefers the saved cycle over a legacy one', () => {
+    expect(doseConfigToCard({ ...base, cycle: { onWeeks: 2, offWeeks: 1 } }, { onWeeks: 8, offWeeks: 8 })).toMatchObject({ onWeeks: 2, offWeeks: 1 });
   });
 });

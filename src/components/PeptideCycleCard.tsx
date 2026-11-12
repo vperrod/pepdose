@@ -7,7 +7,6 @@ import { WeekdayPicker } from './WeekdayPicker';
 import { ReconMixFields } from './ReconMixFields';
 import { PenColorField } from './PenColorField';
 import { cycleStrip, cycleTotalWeeks, cardSummary } from '../utils/cycleForm';
-import { DisclaimerFooter } from './DisclaimerFooter';
 
 const TIME_LABELS: Record<string, string> = {
   morning_fasting: 'Morning (fasting)',
@@ -20,6 +19,8 @@ const TIME_LABELS: Record<string, string> = {
 
 const FREQUENCY_OPTIONS: { value: FrequencyType; label: string }[] = [
   { value: 'daily', label: 'Daily' },
+  { value: '5x_week', label: 'Weekdays (Mon-Fri)' },
+  { value: 'weekly', label: 'Once a week' },
   { value: 'weekly_days', label: 'Specific days of week' },
   { value: 'eod', label: 'Every other day' },
   { value: 'biweekly', label: 'Every 2 weeks' },
@@ -389,7 +390,6 @@ export function PeptideCycleCard({ value, peptide, onChange, onRemove }: Peptide
         </div>
       </details>
 
-      <DisclaimerFooter className="mt-4" />
     </div>
   );
 }
