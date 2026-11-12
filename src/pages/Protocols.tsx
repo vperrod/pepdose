@@ -11,6 +11,7 @@ import {
 import { getPeptideById, type Peptide } from '../data/peptides';
 import { getCurrentWeekGuide } from '../data/experienceTimelines';
 import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
+import { cycleTotalWeeks } from '../utils/cycleForm';
 import { DoseActionSheet } from '../components/DoseActionSheet';
 import { AdhocLogSheet } from '../components/AdhocLogSheet';
 import { DecimalInput } from '../components/DecimalInput';
@@ -954,19 +955,30 @@ export function Protocols() {
                               ))}
                             </select>
                           </div>
-                          {!usingVariant && (
-                            <div>
-                              <label className="text-xs text-text-muted block mb-1">Length (weeks)</label>
-                              <input
-                                type="number"
-                                min={1}
-                                max={52}
-                                value={dose.durationWeeks ?? 1}
-                                onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) return; updateEditDose(idx, { durationWeeks: n }); }}
-                                className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none"
-                              />
-                            </div>
-                          )}
+                          {(() => {
+                            const onWeeks = dose.cycle?.onWeeks ?? dose.durationWeeks ?? 1;
+                            const offWeeks = dose.cycle?.offWeeks ?? 0;
+                            const setCycle = (on: number, off: number) => updateEditDose(idx, {
+                              cycle: off >= 1 ? { onWeeks: on, offWeeks: off } : undefined,
+                              durationWeeks: cycleTotalWeeks(on, off),
+                            });
+                            return (
+                              <>
+                                <div>
+                                  <label htmlFor={`edit-on-${idx}`} className="text-xs text-text-muted block mb-1">Weeks on</label>
+                                  <input id={`edit-on-${idx}`} type="number" min={1} value={onWeeks}
+                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) return; setCycle(n, offWeeks); }}
+                                    className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none" />
+                                </div>
+                                <div>
+                                  <label htmlFor={`edit-off-${idx}`} className="text-xs text-text-muted block mb-1">Weeks off</label>
+                                  <input id={`edit-off-${idx}`} type="number" min={0} value={offWeeks}
+                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 0) return; setCycle(onWeeks, n); }}
+                                    className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none" />
+                                </div>
+                              </>
+                            );
+                          })()}
                           {dose.frequency === 'daily' && !usingVariant && (
                             <div>
                               <label className="text-xs text-text-muted block mb-1">Times/day</label>
