@@ -4,6 +4,16 @@
 > Cross-project backlog: claude-config/os/backlog.md
 > Full context for continuing on a laptop: see `HANDOFF.md` at the repo root.
 
+## Done — simple cycles redesign (2026-11-12, branch simple-cycles)
+
+- [x] Per-peptide `cycle {onWeeks, offWeeks}` on dose configs; `cycleToBreaks`, engine `cycle` hook (utils/cycle.ts)
+- [x] One-screen add flow `pages/AddPeptides.tsx` + `PeptideCycleCard`; pure `cycleForm.ts`, `protocolFromCards.ts`
+- [x] Edit sheet: Weeks on / Weeks off fields (`Protocols.tsx`); old `NewProtocol.tsx` removed
+- [x] Dashboard `CycleBoard` (ON/OFF pill, week X of Y, 24-week strip, next switch) via `cycleStatus.ts`
+- [x] Switch alerts 3d/1d before (`cycleAlerts` + `scheduleCycleAlerts` in notifications.ts)
+- [ ] Not done: move/cut the extra pages (symptoms, half-life, markers, injection map) under More; edit sheet is not yet the shared card component
+- Known pre-existing: `sync.test.ts` backup-vs-tombstone test fails on main; `tz.test.ts` DST test fails when host TZ is not UTC; `scripts/e2e-smoke.mjs` S1-S5/S7/S8 fail in the mini PC harness (same on main)
+
 ## Done — pen clicks + duplicate-dose root cause (2026-08-05)
 
 - [x] `ReconMix` on each protocol dose (vial amount + BAC water), pre-filled from the

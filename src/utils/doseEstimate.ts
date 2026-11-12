@@ -2,7 +2,7 @@ import { type FrequencyType, type SchedulePhase } from '../data/peptides';
 
 /**
  * Estimate total number of doses for a set of peptide configurations over a duration.
- * This function replicates the logic from NewProtocol.tsx's totalDoses useMemo,
+ * This function replicates the logic from the old create form's totalDoses useMemo,
  * but with fixes for the 'custom' and '5x_week' frequencies.
  */
 export function estimateTotalDoses(

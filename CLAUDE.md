@@ -57,7 +57,8 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
     approximate "N times a week" was the `custom` every-N-days interval, which
     drifts against calendar weeks whenever N doesn't evenly divide 7 (every 3
     days gives a repeating 3/2/2-per-week pattern, not a steady 2). UI:
-    `components/WeekdayPicker.tsx`, wired into both `NewProtocol.tsx` and the
+    `components/WeekdayPicker.tsx`, wired into the
+    `PeptideCycleCard` (add flow) and the
     `Protocols.tsx` edit sheet next to the Frequency dropdown.
   - **Protocol variants** (`data/peptides.ts` → `DosingProtocol.protocolVariants`):
     each peptide can declare multiple named, phased protocol variants (e.g.
@@ -76,6 +77,15 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
     `schedulePhases`/`variantId` and defaults to `weekly_days`; gating in the
     JSX uses a per-config `usingVariant = !!schedulePhases?.length` check, not
     the peptide-level `isPhased` flag, so users can freely switch back and forth.
+  - **Cycles** (`utils/cycle.ts`, `utils/cycleForm.ts`, `utils/cycleStatus.ts`): a dose config's optional
+    `cycle: {onWeeks, offWeeks}` is the primary way to say "N weeks on, M off". `cycleToBreaks()` turns it into
+    the break ranges the engine already skips; `generateSchedule({cycle})` wins over `protocolBreaks`, so a
+    stack can give each peptide its own cycle. `offWeeks` 0 = a finite course of `onWeeks`; otherwise the
+    protocol runs `max(24, 2*(on+off))` weeks (`cycleTotalWeeks`). Add = `pages/AddPeptides.tsx` (one screen,
+    `PeptideCycleCard`, pure `protocolFromCards.ts`); edit = `Protocols.tsx` sheet (Weeks on/off fields).
+    `cycleStatus()` (ON/OFF, week X of Y, next switch, 24-week strip; `protocolCycle()` falls back to
+    `breaksToCycle()` for legacy breaks) feeds the Dashboard `CycleBoard`; `cycleAlerts()` +
+    `scheduleCycleAlerts()` in `notifications.ts` send notices 3 days and 1 day before a switch at 09:00.
   - **Breaks** (`data/protocols.ts` → `ProtocolTemplate.breaks`, `db/schema.ts` →
     `UserProtocol.breaks`): explicit off-week ranges (`{ weekStart, weekEnd,
     reason }`) where no doses are generated. Templates with break-aware cycling
@@ -128,7 +138,7 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
   (free-typed or picked from a preset list — `components/PenColorField.tsx`,
   a native `<input list>`/`<datalist>` combo, no custom dropdown needed) so a
   stacked protocol can say which physical pen goes with which peptide. Wired
-  the same way as `recon`: set on `NewProtocol.tsx`/`Protocols.tsx` edit sheet,
+  the same way as `recon`: set on `AddPeptides.tsx` (Pen setup section)/`Protocols.tsx` edit sheet,
   read back out via the protocol's dose config in `DoseActionSheet.tsx`,
   `Dashboard.tsx`, and `Calendar.tsx` (both the dot colour and a "Pen: <colour>"
   label). `penColorHex()` in `PenColorField.tsx` maps the preset names to CSS
@@ -164,8 +174,9 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
   Boost, Retatrutide Clinical, Retatrutide Community Cycle, NAD+ Ramp/Steady,
   MT2 Loading, GHK-Cu Daily/EOD, GLOW Blend, MOTS-c 6-on/6-off, etc.). Each
   template can declare `breaks` (off-week ranges) that the schedule engine
-  respects on creation and regeneration. NewProtocol.tsx and Protocols.tsx both
-  surface template selection with one-click setup. Protocols have a lifecycle:
+  respects on creation and regeneration. The one-screen add flow (`AddPeptides.tsx`) no longer
+  offers templates: each peptide card is pre-filled from the peptide's own cycle data and a variant
+  dropdown, and the template list in `data/protocols.ts` is kept only for the legacy `breaks` data. Protocols have a lifecycle:
   active → paused / completed / archived — the actions sheet in Protocols.tsx
   provides Pause/Resume, Finish (marks completed) and Delete. Status changes do
   **not** rewrite scheduled doses — the day views instead hide *upcoming* doses

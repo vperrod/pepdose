@@ -24,7 +24,7 @@ export function AddPeptides() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Preselect peptides once on mount (matching NewProtocol)
+  // Preselect peptides once on mount
   useEffect(() => {
     const ids = (location.state as { preselectPeptideIds?: string[] } | null)?.preselectPeptideIds;
     if (!ids?.length) return;

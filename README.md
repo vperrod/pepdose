@@ -127,7 +127,7 @@ Security isolates each account); see [docs/CLOUD_SYNC_SETUP.md](docs/CLOUD_SYNC_
   cadences (`daily`/`eod`/`weekly`/`biweekly`/`custom`) use per-cadence loops; peptides with
   `schedulePhases` use a day-by-day phased generator (`5x_week` = weekdays). `summarizePhases()`
   / `phasesTotalWeeks()` are shared helpers for the UI.
-- `src/pages/NewProtocol.tsx` / `src/pages/Protocols.tsx` — create and edit flows. Editing
+- `src/pages/AddPeptides.tsx` (one screen, `components/PeptideCycleCard.tsx`) / `src/pages/Protocols.tsx` — create and edit flows. Editing
   regenerates upcoming doses (`deleteUpcomingDosesFrom` + `saveScheduledDoses` in
   `src/db/operations.ts`) and preserves logged history. `Protocols.tsx` also renders the
   journey timeline, joining `getScheduledDosesForProtocol` with `getDoseLogsForProtocol` so
@@ -160,7 +160,7 @@ Security isolates each account); see [docs/CLOUD_SYNC_SETUP.md](docs/CLOUD_SYNC_
 - `src/utils/titrationCoach.ts` — `nextTitrationStep(doses, today)` finds the next upcoming
   `isTitrationStepUp` dose (flagged by the schedule engine) for the Dashboard coach. Pure, no AI.
 - `src/utils/goalPicker.ts` — `peptidesForGoal(category)` + `synergyStacksFor(category)` power the
-  `/find` picker (only `synergy` stacks surface). Picks navigate to `NewProtocol` with
+  `/find` picker (only `synergy` stacks surface). Picks navigate to `AddPeptides` with
   `preselectPeptideIds` in router state.
 - The outcome overlay reuses the `HealthMarkers` recharts pattern with `getHealthMarkers(start, end)`.
 - `PeptideExperience` (in `experienceTimelines.ts`) carries optional rich sections — `evidenceLevel`,

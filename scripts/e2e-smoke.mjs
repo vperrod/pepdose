@@ -40,6 +40,8 @@ if (!external) {
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
+// A fresh profile shows onboarding over every route; mark it done so scenarios reach the real screens.
+await page.addInitScript(() => localStorage.setItem('pepdose-onboarded', 'true'));
 const consoleErrors = [];
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 page.on('pageerror', e => consoleErrors.push(e.message));
@@ -187,6 +189,25 @@ await scenario('S6 protocol journey shows the per-week dose summary', async () =
   await page.waitForTimeout(800);
   if (!(await page.getByText(/due doses done/).count())) throw new Error('journey summary line missing');
   if (!(await page.getByText('Week 1', { exact: true }).count())) throw new Error('week group row missing');
+});
+
+await scenario('S7 one-screen add: 5 weeks on / 3 off skips weeks 6-8 and shows ON on Today', async () => {
+  await page.goto(BASE + '/protocols/new', { waitUntil: 'networkidle' });
+  await page.getByPlaceholder('Search peptides...').fill('KPV');
+  await page.getByRole('button', { name: /^KPV\b/ }).first().click();
+  await page.getByLabel('Weeks on').fill('5');
+  await page.getByLabel('Weeks off').fill('3');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.waitForURL(u => !u.pathname.includes('/protocols/new'));
+  const proto = (await readStore('protocols')).find(p => p.name === 'KPV');
+  if (!proto) throw new Error('KPV protocol not saved');
+  const c = proto.doses[0].cycle;
+  if (!c || c.onWeeks !== 5 || c.offWeeks !== 3) throw new Error('cycle not saved: ' + JSON.stringify(c));
+  const weeks = new Set((await readStore('scheduledDoses')).filter(d => d.protocolId === proto.id).map(d => d.weekNumber));
+  if ([6, 7, 8].some(w => weeks.has(w))) throw new Error('doses generated in off weeks');
+  if (!weeks.has(5) || !weeks.has(9)) throw new Error('missing on-week doses');
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+  if (!(await page.getByText(/ON · week 1 of 5/).count())) throw new Error('Today board missing ON pill');
 });
 
 console.log(results.join('\n'));
