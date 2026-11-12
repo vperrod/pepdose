@@ -62,3 +62,12 @@ describe('protocolFromCards utilities', () => {
     expect(canSave([defaultCard(kpv)])).toBe(true);
   });
 });
+describe('canSave with NaN values', () => {
+  it('rejects a NaN dose', () => {
+    expect(canSave([{ ...defaultCard(getPeptideById('kpv')!), dose: NaN }])).toBe(false);
+  });
+
+  it('rejects non-integer weeks on', () => {
+    expect(canSave([{ ...defaultCard(getPeptideById('kpv')!), onWeeks: 2.5 }])).toBe(false);
+  });
+});

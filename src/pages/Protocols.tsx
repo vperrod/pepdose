@@ -11,7 +11,8 @@ import {
 import { getPeptideById, type Peptide } from '../data/peptides';
 import { getCurrentWeekGuide } from '../data/experienceTimelines';
 import { generateSchedule, summarizePhases, phasesTotalWeeks } from '../utils/scheduleEngine';
-import { cycleTotalWeeks } from '../utils/cycleForm';
+import { cycleEditDuration } from '../utils/cycleForm';
+import { protocolCycle } from '../utils/cycleStatus';
 import { DoseActionSheet } from '../components/DoseActionSheet';
 import { AdhocLogSheet } from '../components/AdhocLogSheet';
 import { DecimalInput } from '../components/DecimalInput';
@@ -956,26 +957,34 @@ export function Protocols() {
                             </select>
                           </div>
                           {(() => {
-                            const onWeeks = dose.cycle?.onWeeks ?? dose.durationWeeks ?? 1;
-                            const offWeeks = dose.cycle?.offWeeks ?? 0;
-                            const setCycle = (on: number, off: number) => updateEditDose(idx, {
+                            const legacy = protocolCycle(activeProto!, dose.peptideId).cycle;
+                            const current = dose.cycle ?? legacy;
+                            const onWeeks = current?.onWeeks ?? dose.durationWeeks ?? 1;
+                            const offWeeks = current?.offWeeks ?? 0;
+                            const hasIrregularBreaks = !current && !!activeProto?.breaks?.length;
+                            const setCycle = (on: number, off: number, changed: 'on' | 'off') => updateEditDose(idx, {
                               cycle: off >= 1 ? { onWeeks: on, offWeeks: off } : undefined,
-                              durationWeeks: cycleTotalWeeks(on, off),
+                              durationWeeks: cycleEditDuration(on, off, dose.durationWeeks, changed, !!dose.schedulePhases?.length),
                             });
                             return (
                               <>
                                 <div>
                                   <label htmlFor={`edit-on-${idx}`} className="text-xs text-text-muted block mb-1">Weeks on</label>
                                   <input id={`edit-on-${idx}`} type="number" min={1} value={onWeeks}
-                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) return; setCycle(n, offWeeks); }}
+                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 1) return; setCycle(n, offWeeks, 'on'); }}
                                     className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none" />
                                 </div>
                                 <div>
                                   <label htmlFor={`edit-off-${idx}`} className="text-xs text-text-muted block mb-1">Weeks off</label>
                                   <input id={`edit-off-${idx}`} type="number" min={0} value={offWeeks}
-                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 0) return; setCycle(onWeeks, n); }}
+                                    onChange={e => { const n = parseInt(e.target.value, 10); if (!Number.isFinite(n) || n < 0) return; setCycle(onWeeks, n, 'off'); }}
                                     className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none" />
                                 </div>
+                                {hasIrregularBreaks && (
+                                  <p className="col-span-2 text-[11px] text-text-muted">
+                                    This protocol has custom off weeks from a template. Setting Weeks off replaces them.
+                                  </p>
+                                )}
                               </>
                             );
                           })()}

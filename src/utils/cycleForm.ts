@@ -1,7 +1,7 @@
 import type { Peptide, FrequencyType, TimeOfDay, SchedulePhase } from '../data/peptides';
 import type { UserProtocol, ReconMix } from '../db/schema';
 import { defaultRecon } from './penClicks';
-import { summarizePhases } from './scheduleEngine';
+import { summarizePhases, phasesTotalWeeks } from './scheduleEngine';
 
 // Type definitions
 export type DoseConfig = UserProtocol['doses'][number];
@@ -128,7 +128,9 @@ export function cardToDoseConfig(card: CardValue): DoseConfig {
     frequency: card.frequency,
     timesPerDay: card.timesPerDay,
     timeOfDay: card.timeOfDay,
-    durationWeeks: cycleTotalWeeks(card.onWeeks, card.offWeeks),
+    durationWeeks: card.schedulePhases?.length
+      ? phasesTotalWeeks(card.schedulePhases)
+      : cycleTotalWeeks(card.onWeeks, card.offWeeks),
   };
 
   // Add daysOfWeek only when frequency is 'weekly_days'
@@ -202,4 +204,14 @@ export function cardSummary(card: CardValue): string {
   } else {
     return `${daysPart}, ${dosePart}. ${card.onWeeks} weeks.`;
   }
+}
+/** Course length after the user edits Weeks on or Weeks off on an existing dose. A phased variant keeps its
+ *  own length; turning the off weeks to 0 keeps the current course instead of shrinking it to the on weeks. */
+export function cycleEditDuration(
+  onWeeks: number, offWeeks: number, existing: number | undefined,
+  changed: 'on' | 'off', phased: boolean,
+): number {
+  if (phased) return existing ?? onWeeks;
+  if (offWeeks >= 1) return cycleTotalWeeks(onWeeks, offWeeks);
+  return changed === 'on' ? onWeeks : existing ?? onWeeks;
 }

@@ -49,13 +49,14 @@ export function canSave(cards: CardValue[]): boolean {
   if (cards.length === 0) return false;
   
   for (const card of cards) {
-    if (card.dose <= 0) return false;
+    if (!Number.isFinite(card.dose) || card.dose <= 0) return false;
     
     if (card.frequency === 'weekly_days' && card.daysOfWeek.length === 0) return false;
     
     if (card.frequency === 'custom' && (!card.customFrequencyDays || card.customFrequencyDays <= 0)) return false;
     
-    if (card.onWeeks < 1) return false;
+    if (!Number.isInteger(card.onWeeks) || card.onWeeks < 1) return false;
+    if (!Number.isInteger(card.offWeeks) || card.offWeeks < 0) return false;
   }
   
   return true;

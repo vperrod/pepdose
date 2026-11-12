@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getPeptideById } from '../data/peptides';
-import { defaultCard, daysToFrequency, cycleTotalWeeks, cardToDoseConfig, cycleStrip, cardSummary } from './cycleForm';
+import { defaultCard, daysToFrequency, cycleTotalWeeks, cardToDoseConfig, cycleStrip, cardSummary, cycleEditDuration } from './cycleForm';
 
 describe('cycleForm utilities', () => {
   // Test defaultCard with real peptides from the data
@@ -194,5 +194,33 @@ describe('cycleForm utilities', () => {
     };
 
     expect(cardSummary(card)).toBe('Mon & Thu, 2 mg. 12 weeks.');
+  });
+});
+describe('cycleEditDuration', () => {
+  it('keeps the current course when weeks off is set to 0', () => {
+    expect(cycleEditDuration(4, 0, 24, 'off', false)).toBe(24);
+  });
+
+  it('uses the weeks on as the course when weeks on changes and there are no off weeks', () => {
+    expect(cycleEditDuration(6, 0, 24, 'on', false)).toBe(6);
+  });
+
+  it('runs two full cycles (at least 24 weeks) when there are off weeks', () => {
+    expect(cycleEditDuration(4, 1, 4, 'off', false)).toBe(24);
+  });
+
+  it('leaves a phased variant at its own length', () => {
+    expect(cycleEditDuration(8, 8, 12, 'on', true)).toBe(12);
+  });
+});
+
+describe('cardToDoseConfig with a phased variant', () => {
+  it('uses the phases total as the course length, not the cycle length', () => {
+    const card = {
+      ...defaultCard(getPeptideById('kpv')!),
+      onWeeks: 4, offWeeks: 2,
+      schedulePhases: [{ weekStart: 1, weekEnd: 12, frequency: 'daily' as const }],
+    };
+    expect(cardToDoseConfig(card).durationWeeks).toBe(12);
   });
 });

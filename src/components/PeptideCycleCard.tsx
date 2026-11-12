@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Clock, X, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Peptide, FrequencyType } from '../data/peptides';
 import type { CardValue } from '../utils/cycleForm';
@@ -31,6 +31,30 @@ interface PeptideCycleCardProps {
   peptide: Peptide;
   onChange: (v: CardValue) => void;
   onRemove?: () => void;
+}
+
+/** Number input that keeps its own text while typing, so clearing the field to retype is possible. */
+function WeeksInput({ id, label, value, min, onCommit }: {
+  id: string; label: string; value: number; min: number; onCommit: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  return (
+    <input
+      id={id}
+      type="number"
+      value={draft}
+      min={min}
+      aria-label={label}
+      onChange={e => {
+        setDraft(e.target.value);
+        const n = parseInt(e.target.value, 10);
+        if (Number.isInteger(n) && n >= min) onCommit(n);
+      }}
+      onBlur={() => setDraft(String(value))}
+      className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
+    />
+  );
 }
 
 export function PeptideCycleCard({ value, peptide, onChange, onRemove }: PeptideCycleCardProps) {
@@ -236,32 +260,22 @@ export function PeptideCycleCard({ value, peptide, onChange, onRemove }: Peptide
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div>
           <label htmlFor={`${value.peptideId}-weeks-on`} className="text-xs text-text-muted block mb-2">Weeks on</label>
-          <input
+          <WeeksInput
             id={`${value.peptideId}-weeks-on`}
-            type="number"
+            label="Weeks on"
             value={value.onWeeks}
-            onChange={e => {
-              const weeks = parseInt(e.target.value) || 1;
-              onChange({ ...value, onWeeks: Math.max(1, weeks) });
-            }}
-            min="1"
-            className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
-            aria-label="Weeks on"
+            min={1}
+            onCommit={n => onChange({ ...value, onWeeks: n })}
           />
         </div>
         <div>
           <label htmlFor={`${value.peptideId}-weeks-off`} className="text-xs text-text-muted block mb-2">Weeks off</label>
-          <input
+          <WeeksInput
             id={`${value.peptideId}-weeks-off`}
-            type="number"
+            label="Weeks off"
             value={value.offWeeks}
-            onChange={e => {
-              const weeks = parseInt(e.target.value) || 0;
-              onChange({ ...value, offWeeks: Math.max(0, weeks) });
-            }}
-            min="0"
-            className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/40"
-            aria-label="Weeks off"
+            min={0}
+            onCommit={n => onChange({ ...value, offWeeks: n })}
           />
         </div>
       </div>

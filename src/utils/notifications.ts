@@ -274,6 +274,7 @@ async function scheduleCycleAlerts(timezone: string): Promise<void> {
   const today = todayStr();
   const now = Date.now();
   const protocols = filterByOwner(await getProtocols('active'), activeOwnerFilter());
+  const valid = new Set<string>();
   for (const p of protocols) {
     for (const d of p.doses) {
       const { cycle, durationWeeks } = protocolCycle(p, d.peptideId);
@@ -281,6 +282,7 @@ async function scheduleCycleAlerts(timezone: string): Promise<void> {
       const name = getPeptideById(d.peptideId)?.name ?? d.peptideId;
       for (const alert of cycleAlerts(status, name)) {
         const id = `cycle-${p.id}-${d.peptideId}-${alert.date}`;
+        valid.add(id);
         const at = zonedTimeToUtc(alert.date, '09:00', timezone);
         if (Number.isNaN(at) || firedSet().has(id)) continue;
         const url = import.meta.env.BASE_URL;
@@ -295,6 +297,23 @@ async function scheduleCycleAlerts(timezone: string): Promise<void> {
       }
     }
   }
+  await cancelStaleCycleAlerts(valid, now);
+}
+
+/** Close armed cycle alerts whose protocol was paused, finished, deleted or whose cycle changed. */
+async function cancelStaleCycleAlerts(valid: Set<string>, now: number): Promise<void> {
+  if (!triggeredNotificationsSupported()) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const armed: any[] = await (reg.getNotifications as any)({ includeTriggered: true });
+    for (const n of armed) {
+      if (typeof n.tag !== 'string' || !n.tag.startsWith('cycle-') || valid.has(n.tag)) continue;
+      if (!n.showTrigger || n.showTrigger.timestamp <= now) continue;
+      n.close();
+      unmarkFired(n.tag);
+    }
+  } catch { /* ignore */ }
 }
 
 /**
