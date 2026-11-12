@@ -9,7 +9,7 @@ import { Onboarding } from './pages/Onboarding';
 const Dashboard = lazy(async () => ({ default: (await import('./pages/Dashboard')).Dashboard }));
 const Calendar = lazy(async () => ({ default: (await import('./pages/Calendar')).Calendar }));
 const Protocols = lazy(async () => ({ default: (await import('./pages/Protocols')).Protocols }));
-const NewProtocol = lazy(async () => ({ default: (await import('./pages/NewProtocol')).NewProtocol }));
+const AddPeptides = lazy(async () => ({ default: (await import('./pages/AddPeptides')).AddPeptides }));
 const Insights = lazy(async () => ({ default: (await import('./pages/Insights')).Insights }));
 const More = lazy(async () => ({ default: (await import('./pages/More')).More }));
 const QuickLog = lazy(async () => ({ default: (await import('./pages/QuickLog')).QuickLog }));
@@ -70,7 +70,7 @@ function AppInner({ onboarded, setOnboarded }: { onboarded: boolean; setOnboarde
             <Route path="/" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/protocols" element={<Protocols />} />
-            <Route path="/protocols/new" element={<NewProtocol />} />
+            <Route path="/protocols/new" element={<AddPeptides />} />
             <Route path="/log" element={<QuickLog />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/half-life" element={<HalfLife />} />
