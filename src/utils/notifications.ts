@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
-import { getScheduledDosesForDate, getDoseLogsForDate } from '../db/operations';
+import { getScheduledDosesForDate, getDoseLogsForDate, getProtocols } from '../db/operations';
+import { cycleStatus, cycleAlerts, protocolCycle } from './cycleStatus';
 import { getPeptideById } from '../data/peptides';
 import { zonedTimeToUtc } from './tz';
 import { filterByOwner } from '../context/ownerFilter';
@@ -150,6 +151,7 @@ async function cancelStaleTriggers(
     const current = new Map(items.map((i) => [i.dose.id, i]));
     for (const n of armed) {
       if (!n.showTrigger || n.showTrigger.timestamp <= now) continue; // shown or not triggered: leave it
+      if (typeof n.tag === 'string' && n.tag.startsWith('cycle-')) continue; // cycle alerts are armed by scheduleCycleAlerts
       const match = current.get(n.tag);
       if (match && match.remindAt === n.showTrigger.timestamp && match.title === n.title && match.body === n.body) continue;
       n.close();
@@ -259,6 +261,37 @@ export async function scheduleReminders(): Promise<void> {
           void show(title, body, dose.id, url);
         }, remindAt - now);
         timers.push(timer);
+      }
+    }
+  }
+
+  // Best-effort: a cycle-alert failure must not break dose reminders.
+  try { await scheduleCycleAlerts(settings.timezone); } catch { /* ignore */ }
+}
+
+/** Notices 3 days and 1 day before a peptide goes off, comes back on, or its course ends (09:00 local). */
+async function scheduleCycleAlerts(timezone: string): Promise<void> {
+  const today = todayStr();
+  const now = Date.now();
+  const protocols = filterByOwner(await getProtocols('active'), activeOwnerFilter());
+  for (const p of protocols) {
+    for (const d of p.doses) {
+      const { cycle, durationWeeks } = protocolCycle(p, d.peptideId);
+      const status = cycleStatus({ startDate: p.startDate, durationWeeks, cycle, breaks: p.breaks, today });
+      const name = getPeptideById(d.peptideId)?.name ?? d.peptideId;
+      for (const alert of cycleAlerts(status, name)) {
+        const id = `cycle-${p.id}-${d.peptideId}-${alert.date}`;
+        const at = zonedTimeToUtc(alert.date, '09:00', timezone);
+        if (Number.isNaN(at) || firedSet().has(id)) continue;
+        const url = import.meta.env.BASE_URL;
+        if (at > now && await scheduleTriggeredReminder(id, alert.title, alert.body, at, url)) continue;
+        if (alert.date !== today) continue; // in-page timers only cover today
+        if (at <= now) {
+          markFired(id);
+          void show(alert.title, alert.body, id, url);
+        } else {
+          timers.push(setTimeout(() => { markFired(id); void show(alert.title, alert.body, id, url); }, at - now));
+        }
       }
     }
   }
