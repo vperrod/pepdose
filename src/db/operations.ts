@@ -147,6 +147,7 @@ export async function repairEmptyFiveDayProtocols(): Promise<number> {
       customFrequencyDays: c.customFrequencyDays, daysOfWeek: c.daysOfWeek, timesPerDay: c.timesPerDay,
       timeOfDay: c.timeOfDay, startDate: p.startDate, durationWeeks: c.durationWeeks ?? p.durationWeeks,
       schedulePhases: c.schedulePhases, protocolBreaks: p.breaks, protocolId: p.id,
+      cycle: c.cycle,
     }));
     await saveScheduledDoses(doses, p.owner);
     rebuilt++;

@@ -276,6 +276,7 @@ export function Protocols() {
           schedulePhases: d.schedulePhases,
           protocolBreaks: activeProto.breaks,
           protocolId: activeProto.id,
+          cycle: d.cycle,
         })
       );
 

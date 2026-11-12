@@ -22,7 +22,7 @@ export interface UserProtocol {
    *  peptide. Both leave `schedulePhases`/`variantId` unset, but only the latter
    *  should fall back to the peptide's default variant phases (see `openSheet` in
    *  `pages/Protocols.tsx`). */
-  doses: { peptideId: string; dose: number; unit: 'mcg' | 'mg' | 'IU'; frequency: string; timesPerDay?: number; timeOfDay: string; durationWeeks?: number; customFrequencyDays?: number; daysOfWeek?: number[]; schedulePhases?: SchedulePhase[]; variantId?: string; recon?: ReconMix; penColor?: string; customSchedule?: boolean }[];
+  doses: { peptideId: string; dose: number; unit: 'mcg' | 'mg' | 'IU'; frequency: string; timesPerDay?: number; timeOfDay: string; durationWeeks?: number; customFrequencyDays?: number; daysOfWeek?: number[]; schedulePhases?: SchedulePhase[]; variantId?: string; recon?: ReconMix; penColor?: string; customSchedule?: boolean; cycle?: { onWeeks: number; offWeeks: number } }[];
   startDate: string;
   durationWeeks: number;
   status: 'active' | 'paused' | 'completed' | 'archived';

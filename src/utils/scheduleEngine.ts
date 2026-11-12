@@ -1,6 +1,7 @@
 import { addDays, addWeeks, format, eachDayOfInterval, isBefore, parseISO } from 'date-fns';
 import { type Peptide, type SchedulePhase, getPeptideById } from '../data/peptides';
 import type { ProtocolBreak } from '../data/protocols';
+import { type Cycle, cycleToBreaks } from './cycle';
 import type { ScheduledDose } from '../db/schema';
 import { SITE_LABELS } from '../data/injectionSites';
 
@@ -22,6 +23,8 @@ interface ScheduleConfig {
   protocolId: string;
   schedulePhases?: SchedulePhase[];
   protocolBreaks?: ProtocolBreak[];
+  /** Regular on/off weeks for this peptide; wins over protocolBreaks. */
+  cycle?: Cycle;
 }
 
 function generateId(): string {
@@ -49,7 +52,10 @@ function isInBreak(weekNum: number, breaks?: ProtocolBreak[]): boolean {
   return breaks.some(b => weekNum >= b.weekStart && weekNum <= b.weekEnd);
 }
 
-export function generateSchedule(config: ScheduleConfig): DraftDose[] {
+export function generateSchedule(input: ScheduleConfig): DraftDose[] {
+  const config = input.cycle
+    ? { ...input, protocolBreaks: cycleToBreaks(input.cycle, input.durationWeeks) }
+    : input;
   const peptide = getPeptideById(config.peptideId);
   const doses: DraftDose[] = [];
   const startDate = parseISO(config.startDate);

@@ -298,6 +298,77 @@ describe('summarizePhases', () => {
   });
 });
 
+describe('generateSchedule with cycle', () => {
+  it('weekly_days Mon+Thu with durationWeeks 24 and cycle 8/8 produces no doses in weeks 9-16, doses in week 8 and week 17', () => {
+    const doses = generateSchedule({
+      peptideId: 'no-such-peptide',
+      dose: 250,
+      unit: 'mcg' as const,
+      frequency: 'weekly_days',
+      daysOfWeek: [1, 4], // Monday (1) and Thursday (4)
+      timeOfDay: 'morning',
+      startDate: '2026-01-05', // Monday
+      durationWeeks: 24,
+      cycle: { onWeeks: 8, offWeeks: 8 },
+      protocolId: 'p1',
+    });
+    
+    // Week 8 should have doses
+    const week8Doses = doses.filter(d => d.weekNumber === 8);
+    expect(week8Doses.length).toBeGreaterThan(0);
+    
+    // Weeks 9-16 should have no doses
+    const breakWeeksDoses = doses.filter(d => d.weekNumber >= 9 && d.weekNumber <= 16);
+    expect(breakWeeksDoses.length).toBe(0);
+    
+    // Week 17 should have doses
+    const week17Doses = doses.filter(d => d.weekNumber === 17);
+    expect(week17Doses.length).toBeGreaterThan(0);
+  });
+
+  it('two configs with different cycles produce different off weeks', () => {
+    const config1 = {
+      peptideId: 'no-such-peptide',
+      dose: 250,
+      unit: 'mcg' as const,
+      frequency: 'weekly_days',
+      daysOfWeek: [1, 4],
+      timeOfDay: 'morning',
+      startDate: '2026-01-05',
+      durationWeeks: 24,
+      cycle: { onWeeks: 8, offWeeks: 8 },
+      protocolId: 'p1',
+    };
+
+    const config2 = {
+      peptideId: 'no-such-peptide',
+      dose: 250,
+      unit: 'mcg' as const,
+      frequency: 'weekly_days',
+      daysOfWeek: [1, 4],
+      timeOfDay: 'morning',
+      startDate: '2026-01-05',
+      durationWeeks: 24,
+      cycle: { onWeeks: 4, offWeeks: 4 },
+      protocolId: 'p1',
+    };
+
+    const doses1 = generateSchedule(config1);
+    const doses2 = generateSchedule(config2);
+    
+    // Both should have doses in weeks 1-8
+    expect(doses1.filter(d => d.weekNumber <= 8).length).toBeGreaterThan(0);
+    expect(doses2.filter(d => d.weekNumber <= 8).length).toBeGreaterThan(0);
+    
+    // But config1 should have breaks 9-16, config2 should have breaks 5-8
+    const breakWeeks1 = doses1.filter(d => d.weekNumber >= 9 && d.weekNumber <= 16);
+    const breakWeeks2 = doses2.filter(d => d.weekNumber >= 5 && d.weekNumber <= 8);
+    
+    expect(breakWeeks1.length).toBe(0); // No doses in weeks 9-16 for config1
+    expect(breakWeeks2.length).toBe(0); // No doses in weeks 5-8 for config2
+  });
+});
+
 describe('every playbook peptide generates a schedule from its own defaults', () => {
   for (const p of PEPTIDES) {
     it(`${p.id} produces doses`, () => {
