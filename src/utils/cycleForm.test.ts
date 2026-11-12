@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getPeptideById } from '../data/peptides';
-import { defaultCard, daysToFrequency, cycleTotalWeeks, cardToDoseConfig, cycleStrip, cardSummary, cycleEditDuration, doseConfigToCard } from './cycleForm';
+import { defaultCard, daysToFrequency, cycleTotalWeeks, cardToDoseConfig, cycleStrip, cardSummary, cycleEditDuration, doseConfigToCard, mergeEditedCard } from './cycleForm';
 
 describe('cycleForm utilities', () => {
   // Test defaultCard with real peptides from the data
@@ -251,5 +251,42 @@ describe('doseConfigToCard', () => {
 
   it('prefers the saved cycle over a legacy one', () => {
     expect(doseConfigToCard({ ...base, cycle: { onWeeks: 2, offWeeks: 1 } }, { onWeeks: 8, offWeeks: 8 })).toMatchObject({ onWeeks: 2, offWeeks: 1 });
+  });
+});
+
+describe('mergeEditedCard', () => {
+  const existing = { peptideId: 'kpv', dose: 200, unit: 'mcg' as const, frequency: 'daily', timeOfDay: 'morning', durationWeeks: 12 };
+  const legacyCard = () => doseConfigToCard(existing, { onWeeks: 4, offWeeks: 2 });
+
+  it('keeps a legacy protocol at its 12-week course when only the dose changes', () => {
+    const before = legacyCard();
+    expect(mergeEditedCard(existing, before, { ...before, dose: 300 }).durationWeeks).toBe(12);
+  });
+
+  it('does not write a cycle when the legacy pattern is untouched', () => {
+    const before = legacyCard();
+    expect(mergeEditedCard(existing, before, { ...before, dose: 300 }).cycle).toBeUndefined();
+  });
+
+  it('applies the new dose on an untouched cycle', () => {
+    const before = legacyCard();
+    expect(mergeEditedCard(existing, before, { ...before, dose: 300 }).dose).toBe(300);
+  });
+
+  it('keeps a saved cycle when only the dose changes', () => {
+    const saved = { ...existing, cycle: { onWeeks: 5, offWeeks: 3 }, durationWeeks: 24 };
+    const before = doseConfigToCard(saved);
+    expect(mergeEditedCard(saved, before, { ...before, dose: 250 }).cycle).toEqual({ onWeeks: 5, offWeeks: 3 });
+  });
+
+  it('follows the new cycle when weeks off changes', () => {
+    const before = legacyCard();
+    expect(mergeEditedCard(existing, before, { ...before, offWeeks: 3 }).cycle).toEqual({ onWeeks: 4, offWeeks: 3 });
+  });
+
+  it('keeps the course when weeks off is set to 0', () => {
+    const saved = { ...existing, cycle: { onWeeks: 4, offWeeks: 2 }, durationWeeks: 24 };
+    const before = doseConfigToCard(saved);
+    expect(mergeEditedCard(saved, before, { ...before, offWeeks: 0 }).durationWeeks).toBe(24);
   });
 });

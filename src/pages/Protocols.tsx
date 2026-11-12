@@ -11,7 +11,7 @@ import {
 import { getPeptideById } from '../data/peptides';
 import { getCurrentWeekGuide } from '../data/experienceTimelines';
 import { generateSchedule, phasesTotalWeeks } from '../utils/scheduleEngine';
-import { cycleEditDuration, cardToDoseConfig, doseConfigToCard, type CardValue } from '../utils/cycleForm';
+import { mergeEditedCard, doseConfigToCard, type CardValue } from '../utils/cycleForm';
 import { PeptideCycleCard } from '../components/PeptideCycleCard';
 import { protocolCycle } from '../utils/cycleStatus';
 import { DoseActionSheet } from '../components/DoseActionSheet';
@@ -295,11 +295,7 @@ export function Protocols() {
   }
 
   function handleCardChange(index: number, before: CardValue, next: CardValue) {
-    const durationWeeks = cycleEditDuration(
-      next.onWeeks, next.offWeeks, editDoses[index]?.durationWeeks,
-      next.onWeeks !== before.onWeeks ? 'on' : 'off', !!next.schedulePhases?.length,
-    );
-    setEditDoses(prev => prev.map((d, i) => i === index ? { ...cardToDoseConfig(next), durationWeeks } : d));
+    setEditDoses(prev => prev.map((d, i) => i === index ? mergeEditedCard(d, before, next) : d));
   }
 
   if (loading) {

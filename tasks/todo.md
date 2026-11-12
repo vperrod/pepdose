@@ -11,8 +11,12 @@
 - [x] Edit sheet: Weeks on / Weeks off fields (`Protocols.tsx`); old `NewProtocol.tsx` removed
 - [x] Dashboard `CycleBoard` (ON/OFF pill, week X of Y, 24-week strip, next switch) via `cycleStatus.ts`
 - [x] Switch alerts 3d/1d before (`cycleAlerts` + `scheduleCycleAlerts` in notifications.ts)
-- [ ] Not done: move/cut the extra pages (symptoms, half-life, markers, injection map) under More; edit sheet is not yet the shared card component
-- Known pre-existing: `sync.test.ts` backup-vs-tombstone test fails on main; `tz.test.ts` DST test fails when host TZ is not UTC; `scripts/e2e-smoke.mjs` S1-S5/S7/S8 fail in the mini PC harness (same on main)
+- [x] Nav is Today / Calendar / Log / Peptides / More; Insights (active levels, symptoms, injection map) sits under More
+- [x] Edit sheet uses the shared `PeptideCycleCard` (`doseConfigToCard` / `mergeEditedCard`); legacy-break protocols keep their course on a dose-only edit
+- [x] Engine week math counts calendar days (`weekNumberOf`), so DST no longer shifts doses a week
+- [x] `zonedTimeToUtc` is host-timezone independent (reminders were an hour off for hosts not on UTC); DST tests corrected
+- [x] `scripts/e2e-smoke.mjs` S1-S10 pass (seeded an active protocol, nine-peptide picker, distinct dose times, edit-sheet scenario)
+- [ ] Open decision: `sync.test.ts` F17 expects a restored backup row to beat a newer cloud tombstone, but `importData` now keeps the backup's own stamp (nightly fix edcce9f), so the cloud delete wins. One of the two must change.
 
 ## Done — pen clicks + duplicate-dose root cause (2026-08-05)
 

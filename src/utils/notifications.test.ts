@@ -174,20 +174,37 @@ describe('per-day fired dedupe', () => {
 
 describe('P0 DST transitions', () => {
   describe('zonedTimeToUtc spring-forward', () => {
-    it('maps 02:30 local on spring-forward day to the pre-transition UTC instant', () => {
+    it('maps a skipped 02:30 local time to just after the gap (03:30 EDT)', () => {
       const ms = zonedTimeToUtc('2026-03-08', '02:30', 'America/New_York');
       expect(new Date(ms).toISOString()).toBe('2026-03-08T07:30:00.000Z');
     });
 
-    it('maps 03:30 local on spring-forward day to the post-transition UTC instant', () => {
+    it('maps 03:30 EDT on spring-forward day to 07:30 UTC', () => {
       const ms = zonedTimeToUtc('2026-03-08', '03:30', 'America/New_York');
-      expect(new Date(ms).toISOString()).toBe('2026-03-08T08:30:00.000Z');
+      expect(new Date(ms).toISOString()).toBe('2026-03-08T07:30:00.000Z');
     });
 
-    it('distinguishes pre- and post-gap mappings by 1 hour', () => {
-      const pre = zonedTimeToUtc('2026-03-08', '02:30', 'America/New_York');
+    it('maps 04:00 EDT on spring-forward day to 08:00 UTC', () => {
+      const ms = zonedTimeToUtc('2026-03-08', '04:00', 'America/New_York');
+      expect(new Date(ms).toISOString()).toBe('2026-03-08T08:00:00.000Z');
+    });
+
+    it('puts 01:30 EST and 03:30 EDT one hour apart', () => {
+      const pre = zonedTimeToUtc('2026-03-08', '01:30', 'America/New_York');
       const post = zonedTimeToUtc('2026-03-08', '03:30', 'America/New_York');
-      expect(new Date(post).getTime()).toBeGreaterThan(new Date(pre).getTime());
+      expect(post - pre).toBe(60 * 60_000);
+    });
+  });
+
+  describe('zonedTimeToUtc after the fall-back switch', () => {
+    it('maps 03:00 EST on fall-back day to 08:00 UTC', () => {
+      const ms = zonedTimeToUtc('2026-11-01', '03:00', 'America/New_York');
+      expect(new Date(ms).toISOString()).toBe('2026-11-01T08:00:00.000Z');
+    });
+
+    it('maps 20:00 on the evening before Sydney DST ends to 09:00 UTC', () => {
+      const ms = zonedTimeToUtc('2026-04-04', '20:00', 'Australia/Sydney');
+      expect(new Date(ms).toISOString()).toBe('2026-04-04T09:00:00.000Z');
     });
   });
 

@@ -16,9 +16,14 @@ export function zonedTimeToUtc(dateStr: string, timeStr: string, timeZone: strin
 
   // Wall-clock time expressed as if it were UTC, independent of the host's own timezone.
   const wallAsUtc = Date.UTC(y, m - 1, d, hh, mm, 0, 0);
-  // Offset taken at the wall-clock instant: the app's tested DST convention (a skipped local time maps to the
-  // standard-time reading, see notifications.test.ts).
-  return wallAsUtc - tzOffsetMs(wallAsUtc, timeZone);
+  // The zone's offset depends on the instant, so resolve it from the wall time, then re-check at the result.
+  const off1 = tzOffsetMs(wallAsUtc, timeZone);
+  const guess = wallAsUtc - off1;
+  const off2 = tzOffsetMs(guess, timeZone);
+  if (off1 === off2) return guess;
+  const candidate = wallAsUtc - off2;
+  // A wall time inside a spring-forward gap does not exist: keep the first guess (it lands just after the gap).
+  return tzOffsetMs(candidate, timeZone) === off2 ? candidate : guess;
 }
 
 /** UTC offset (ms) that `timeZone` has at the given UTC instant. */

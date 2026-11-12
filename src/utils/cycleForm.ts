@@ -243,3 +243,22 @@ export function doseConfigToCard(d: DoseConfig, legacy?: Cycle | null): CardValu
     penColor: d.penColor,
   };
 }
+
+/** The dose config to store after the user edits a card in the edit sheet. Untouched on/off weeks and preset keep the
+ *  saved course length and any legacy `breaks`-derived pattern (no `cycle` written); otherwise the course follows
+ *  cycleEditDuration. */
+export function mergeEditedCard(existing: DoseConfig, before: CardValue, next: CardValue): DoseConfig {
+  const cfg = cardToDoseConfig(next);
+  const presetChanged = before.variantId !== next.variantId || !!before.schedulePhases?.length !== !!next.schedulePhases?.length;
+  const cycleChanged = before.onWeeks !== next.onWeeks || before.offWeeks !== next.offWeeks;
+  if (presetChanged) return cfg;
+  if (!cycleChanged) {
+    const { cycle: _newCycle, ...rest } = cfg;
+    return { ...rest, durationWeeks: existing.durationWeeks ?? cfg.durationWeeks, ...(existing.cycle ? { cycle: existing.cycle } : {}) };
+  }
+  const durationWeeks = cycleEditDuration(
+    next.onWeeks, next.offWeeks, existing.durationWeeks,
+    before.onWeeks !== next.onWeeks ? 'on' : 'off', !!next.schedulePhases?.length,
+  );
+  return { ...cfg, durationWeeks };
+}
