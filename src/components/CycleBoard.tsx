@@ -1,9 +1,11 @@
+import { useNavigate } from 'react-router';
 import { format } from 'date-fns';
 import { type UserProtocol } from '../db/schema';
-import { protocolCycle, cycleStatus } from '../utils/cycleStatus';
+import { buildCycleMap } from '../utils/cycleMap';
 import { getPeptideById } from '../data/peptides';
 
 export function CycleBoard({ protocols }: { protocols: UserProtocol[] }) {
+  const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const activeProtocols = protocols.filter(p => p.status === 'active');
@@ -20,14 +22,7 @@ export function CycleBoard({ protocols }: { protocols: UserProtocol[] }) {
       <div className="space-y-3">
         {activeProtocols.flatMap((protocol) =>
           protocol.doses.map((dose, doseIndex) => {
-            const { cycle, durationWeeks } = protocolCycle(protocol, dose.peptideId);
-            const st = cycleStatus({
-              startDate: protocol.startDate,
-              durationWeeks,
-              cycle,
-              breaks: protocol.breaks,
-              today
-            });
+            const st = buildCycleMap({ protocol, peptideId: dose.peptideId, doses: [], today }).status;
 
             if (st.state === 'done') return null;
 
@@ -89,7 +84,12 @@ export function CycleBoard({ protocols }: { protocols: UserProtocol[] }) {
             return (
               <div
                 key={`${protocol.id}-${doseIndex}`}
-                className="card-glass p-4"
+                className="card-glass p-4 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-label={`${peptideName} cycle details`}
+                onClick={() => navigate(`/cycle/${protocol.id}/${dose.peptideId}`)}
+                onKeyDown={e => { if (e.key === 'Enter') navigate(`/cycle/${protocol.id}/${dose.peptideId}`); }}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium text-sm">{peptideName}</span>

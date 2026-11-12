@@ -245,6 +245,37 @@ await scenario('S10 edit sheet: Weeks off to 0 removes the cycle and keeps the 2
   if (!weeks.has(7)) throw new Error('week 7 still empty after removing the off weeks');
 });
 
+await scenario('S11 cycle map: overview flags a course with no off weeks; the suggested cycle applies from the detail page', async () => {
+  await page.evaluate(async ({ today }) => {
+    const db = await new Promise((res) => { const r = indexedDB.open('pepdose'); r.onsuccess = () => res(r.result); });
+    await new Promise((res, rej) => {
+      const tx = db.transaction('protocols', 'readwrite');
+      tx.objectStore('protocols').put({
+        id: 'e2e-tb', owner: 'Victor', name: 'TB-500 plain', peptideIds: ['tb-500'],
+        doses: [{ peptideId: 'tb-500', dose: 2.5, unit: 'mg', frequency: 'custom', customFrequencyDays: 3, timeOfDay: 'morning', durationWeeks: 12 }],
+        startDate: today, durationWeeks: 12, status: 'active',
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      });
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+  }, { today });
+  await page.goto(BASE + '/protocols', { waitUntil: 'networkidle' });
+  await page.getByText('Cycle map', { exact: true }).waitFor();
+  if (!(await page.getByText('Typical is 6 on, 4 off. Yours has no off weeks.').count())) throw new Error('overview did not flag the missing off weeks');
+  await page.getByRole('button', { name: /^TB-500/ }).first().click();
+  await page.getByText('Every window').waitFor();
+  await page.getByRole('button', { name: /Use suggested cycle/ }).click();
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await page.waitForTimeout(1500);
+  const proto = (await readStore('protocols')).find(p => p.id === 'e2e-tb');
+  const c = proto.doses[0].cycle;
+  if (!c || c.onWeeks !== 6 || c.offWeeks !== 4) throw new Error('cycle not applied: ' + JSON.stringify(c));
+  const weeks = new Set((await readStore('scheduledDoses')).filter(d => d.protocolId === 'e2e-tb').map(d => d.weekNumber));
+  if ([7, 8, 9, 10].some(w => weeks.has(w))) throw new Error('doses left in the new off weeks');
+  if (!weeks.has(6) || !weeks.has(11)) throw new Error('on-week doses missing after apply');
+});
+
 console.log(results.join('\n'));
 console.log(consoleErrors.length ? 'CONSOLE ERRORS:\n' + consoleErrors.join('\n') : 'console clean');
 await browser.close();

@@ -9,6 +9,7 @@ import { Onboarding } from './pages/Onboarding';
 const Dashboard = lazy(async () => ({ default: (await import('./pages/Dashboard')).Dashboard }));
 const Calendar = lazy(async () => ({ default: (await import('./pages/Calendar')).Calendar }));
 const Protocols = lazy(async () => ({ default: (await import('./pages/Protocols')).Protocols }));
+const CycleDetail = lazy(async () => ({ default: (await import('./pages/CycleDetail')).CycleDetail }));
 const AddPeptides = lazy(async () => ({ default: (await import('./pages/AddPeptides')).AddPeptides }));
 const Insights = lazy(async () => ({ default: (await import('./pages/Insights')).Insights }));
 const More = lazy(async () => ({ default: (await import('./pages/More')).More }));
@@ -71,6 +72,7 @@ function AppInner({ onboarded, setOnboarded }: { onboarded: boolean; setOnboarde
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/protocols" element={<Protocols />} />
             <Route path="/protocols/new" element={<AddPeptides />} />
+            <Route path="/cycle/:protocolId/:peptideId" element={<CycleDetail />} />
             <Route path="/log" element={<QuickLog />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/half-life" element={<HalfLife />} />

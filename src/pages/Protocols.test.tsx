@@ -15,6 +15,7 @@ const ops = vi.hoisted(() => ({
   updateProtocol: vi.fn(async () => {}),
   deleteProtocol: vi.fn(async () => {}),
   getScheduledDosesForProtocol: vi.fn(async () => [] as ScheduledDose[]),
+  getScheduledDosesForProtocols: vi.fn(async () => [] as ScheduledDose[]),
   rebuildUpcomingDoses: vi.fn(async (_proto: unknown) => {}),
   getDoseLogsForProtocol: vi.fn(async () => []),
   getDoseLogsForPeptide: vi.fn(async () => []),

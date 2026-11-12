@@ -4,6 +4,8 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { CycleBoard } from './CycleBoard';
 import type { UserProtocol } from '../db/schema';
 
+vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
+
 const protocol = (over: Partial<UserProtocol> = {}): UserProtocol => ({
   id: 'p1',
   owner: 'Victor',

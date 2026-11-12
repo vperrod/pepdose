@@ -13,6 +13,7 @@ import { getCurrentWeekGuide } from '../data/experienceTimelines';
 import { phasesTotalWeeks } from '../utils/scheduleEngine';
 import { mergeEditedCard, doseConfigToCard, type CardValue } from '../utils/cycleForm';
 import { PeptideCycleCard } from '../components/PeptideCycleCard';
+import { CycleOverview } from '../components/CycleOverview';
 import { protocolCycle } from '../utils/cycleStatus';
 import { DoseActionSheet } from '../components/DoseActionSheet';
 import { AdhocLogSheet } from '../components/AdhocLogSheet';
@@ -289,6 +290,8 @@ export function Protocols() {
           New
         </button>
       </div>
+
+      <CycleOverview protocols={applyOwnerFilter(protocols)} />
 
       {dupError && (
         <div role="alert" className="card-glass p-3 mb-3 border border-danger/40 text-sm text-danger stagger-item">
