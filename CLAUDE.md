@@ -201,7 +201,9 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
   per past edit, each with its old dose (2.5 / 2.5 / 5 on the same day). Fixed in
   three places — `rowTs` drops the `date` fallback, `remoteTs` treats any
   future cloud stamp as untrustworthy (0) so pre-fix rows can't outrank a delete,
-  and pushes clamp `updated_at` to now. `saveScheduledDoses` stamps `createdAt`.
+  and pushes clamp `updated_at` to now. Local stamps are clamped to now too
+  (`planMerge`, and `importData` re-stamps a future backup row), so a fast clock
+  or restored backup can't win LWW forever. `saveScheduledDoses` stamps `createdAt`.
   `repairDuplicateScheduledDoses()` (called once from App, pure planner in
   `utils/dedupeDoses.ts`) clears schedules already duplicated; it only ever drops
   *upcoming* rows, keeping the copy that matches the protocol's current dose.

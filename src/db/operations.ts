@@ -551,10 +551,11 @@ export async function importData(jsonString: string, owner: UserName): Promise<v
             if (ownedStores.has(storeName) && !item.owner) item.owner = owner;
             // Keep the backup's own stamp so an old backup can't win LWW over newer
             // cloud edits. Re-stamp only when it's missing or a local pending delete
-            // is newer — that restore is an explicit resurrection.
+            // is newer — that restore is an explicit resurrection. A stamp ahead of
+            // the clock would outrank every other device's edit, so it counts as now.
             const pending = await ledger.get(item.id as string);
             const backupTs = typeof item.updatedAt === 'string' ? item.updatedAt : '';
-            if (!backupTs || (pending && pending.deletedAt >= backupTs)) item.updatedAt = now;
+            if (!backupTs || Date.parse(backupTs) > Date.parse(now) || (pending && pending.deletedAt >= backupTs)) item.updatedAt = now;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await store.put(item as any);
             // Restoring a record cancels any pending delete of it.

@@ -73,6 +73,7 @@ export function planMerge(
   const remote = new Map(remoteRows.map((r) => [r.id, r]));
   const ledger = new Map(localDeletions.map((d) => [d.id, d]));
   const ids = new Set<string>([...local.keys(), ...remote.keys(), ...ledger.keys()]);
+  const now = Date.now();
 
   const push: Timestamped[] = [];
   const localPut: Timestamped[] = [];
@@ -84,7 +85,10 @@ export function planMerge(
     const l = local.get(id);
     const r = remote.get(id);
     const d = ledger.get(id);
-    const lts = l ? rowTs(l) : -1;
+    // A local stamp ahead of the clock (fast device, restored backup) must not
+    // outrank every remote edit forever; the push below stamps the cloud with
+    // min(stamp, now) too, so the two sides compare on the same footing.
+    const lts = l ? Math.min(rowTs(l), now) : -1;
     const rts = r ? remoteTs(r) : -1;
 
     if (l && d) {

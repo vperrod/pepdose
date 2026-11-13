@@ -392,6 +392,19 @@ describe('importData', () => {
     expect(restored.updatedAt).toBe('2020-01-01T00:00:00.000Z');
   });
 
+  it('clamps a backup stamp from the future to now so it cannot outrank other devices forever', async () => {
+    await logDose(baseLog);
+    const ahead = JSON.parse(await exportAllData('all'));
+    ahead.doseLogs[0].updatedAt = new Date(Date.now() + 30 * 864e5).toISOString();
+    const before = Date.now();
+
+    await importData(JSON.stringify(ahead), 'Victor');
+
+    const [restored] = await getAllDoseLogs();
+    expect(Date.parse(restored.updatedAt ?? '')).toBeLessThanOrEqual(Date.now());
+    expect(Date.parse(restored.updatedAt ?? '')).toBeGreaterThanOrEqual(before);
+  });
+
   it('re-stamps a restored row when a newer local delete is pending, so the tombstone cannot re-delete it', async () => {
     const log = await logDose(baseLog);
     const stale = JSON.parse(await exportAllData('all'));

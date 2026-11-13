@@ -132,6 +132,13 @@ describe('a scheduled dose never times itself by its injection date', () => {
     expect(plan.push.map(r => r.id)).toEqual(['d1']);
   });
 
+  it('does not let a local stamp from the future outrank a remote write made right now', () => {
+    const now = new Date().toISOString();
+    const ahead = new Date(Date.now() + 864e5).toISOString();
+    const plan = planMerge([{ id: 'd1', updatedAt: ahead }], [remote('d1', now)]);
+    expect(plan.push).toEqual([]);
+  });
+
   it('lets a local delete beat a remote row stamped a day ahead (clock skew or forgery)', () => {
     const ahead = new Date(Date.now() + 864e5).toISOString();
     const plan = planMerge(
