@@ -4,6 +4,7 @@ import {
   planMerge,
   resetSyncCursor,
   rowTs,
+  suspendSync,
   syncNow,
   type RemoteRow,
   type Timestamped,
@@ -807,6 +808,25 @@ describe('syncNow', () => {
     cloud.gateKinds = new Set();
 
     expect((await db.get('protocols', 'p1'))?.updatedAt).toBe(edited);
+  });
+
+  it('suspendSync resolves when a follow-up pass was queued mid-pass', async () => {
+    let release!: () => void;
+    cloud.gate = new Promise<void>((r) => { release = r; });
+    cloud.gateKinds = new Set(['doseLogs']);
+
+    const background = syncNow();
+    await new Promise((r) => setTimeout(r, 5)); // pass is now held open at the gate
+    await syncNow(); // lands mid-pass: queues a follow-up
+    const suspending = suspendSync();
+    release();
+    const resume = await suspending;
+    await background;
+    cloud.gate = null;
+    cloud.gateKinds = new Set();
+    resume();
+
+    expect(await syncNow()).not.toBeNull();
   });
 
   it('parallelizes all 6 kinds within a single pass', async () => {

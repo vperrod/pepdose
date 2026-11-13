@@ -365,8 +365,11 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
   } finally {
     running = false;
     const done = resolveIdle;
-    if (queuedFollowUp) {
-      queuedFollowUp = false;
+    const followUp = queuedFollowUp;
+    queuedFollowUp = false;
+    // Skipped while suspended: syncNow() would return early without clearing
+    // idlePromise, and suspendSync() would spin on the resolved promise forever.
+    if (followUp && !suspended) {
       // Installs its own idlePromise synchronously, before `done()` releases the
       // waiters, so waitForSyncIdle() spans the follow-up pass too.
       void syncNow();
