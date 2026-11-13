@@ -88,12 +88,40 @@ export async function rebuildUpcomingDoses(proto: UserProtocol): Promise<void> {
       cycle: d.cycle,
     })
   );
-  const existing = await getScheduledDosesForProtocol(proto.id);
-  const preserved = new Set(existing.filter(d => d.status !== 'upcoming').map(d => `${d.peptideId}|${d.date}|${d.time}`));
   const today = format(new Date(), 'yyyy-MM-dd');
-  const regen = fullDoses.filter(d => d.date >= today && !preserved.has(`${d.peptideId}|${d.date}|${d.time}`));
-  await deleteUpcomingDosesFrom(proto.id, today);
-  await saveScheduledDoses(regen, proto.owner);
+  const slot = (d: Pick<ScheduledDose, 'peptideId' | 'date' | 'time'>) => `${d.peptideId}|${d.date}|${d.time}`;
+  const stamp = new Date().toISOString();
+  // One transaction for read, delete and save: a tab close or quota error midway must never leave the protocol
+  // without its upcoming doses.
+  const db = await getDB();
+  const tx = db.transaction(['scheduledDoses', 'deletions'], 'readwrite');
+  const store = tx.objectStore('scheduledDoses');
+  const ledger = tx.objectStore('deletions');
+  const existing = await store.index('by-protocol').getAll(proto.id);
+  const preserved = new Set(existing.filter(d => d.status !== 'upcoming').map(slot));
+  const regen = fullDoses.filter(d => d.date >= today && !preserved.has(slot(d)));
+  const upcoming = existing.filter(d => d.status === 'upcoming' && d.date >= today);
+  const bySlot = new Map(upcoming.map(d => [slot(d), d]));
+  const reused = new Set<string>();
+  for (const d of regen) {
+    // A regenerated dose takes over the id of the upcoming row in its slot, so an edit updates that row (or leaves it
+    // alone when nothing changed) instead of tombstoning and re-pushing every future dose under a new id.
+    const prev = bySlot.get(slot(d));
+    const reuse = !!prev && !reused.has(prev.id);
+    const next = { ...d, id: reuse ? prev.id : d.id, owner: proto.owner };
+    if (reuse) {
+      reused.add(prev.id);
+      const keys = Object.keys({ ...prev, ...next }) as (keyof ScheduledDose)[];
+      if (keys.every(k => k === 'createdAt' || k === 'updatedAt' || prev[k] === next[k])) continue;
+    }
+    await store.put({ createdAt: stamp, updatedAt: stamp, ...next });
+  }
+  for (const d of upcoming) {
+    if (reused.has(d.id)) continue;
+    await store.delete(d.id);
+    await ledger.put(ledgerEntry('scheduledDoses', d.id));
+  }
+  await tx.done;
 }
 
 /** The protocol as it would be after giving one peptide a cycle (or removing it with null). The course never gets

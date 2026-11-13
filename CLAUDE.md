@@ -93,7 +93,8 @@ npm run lint         # eslint — repo has pre-existing errors; don't add new on
     Peptides tab, `pages/CycleDetail.tsx` (route `/cycle/:protocolId/:peptideId`, "Use suggested cycle" previews then
     calls `applyCycleToProtocol`), Today's `CycleBoard` links into it. `rebuildUpcomingDoses()` in `db/operations.ts`
     is the one place that regenerates upcoming doses (edit sheet and cycle apply both use it; logged/skipped/missed
-    doses are never touched). Only 3 peptides carry preset variants now, so suggestions come from the typical cycle.
+    doses are never touched). It reads, deletes and saves in one transaction and reuses the id of the upcoming row in an
+    unchanged slot, so an edit never leaves a protocol empty or tombstones every future dose. Only 3 peptides carry preset variants now, so suggestions come from the typical cycle.
   - **Breaks** (`data/protocols.ts` → `ProtocolTemplate.breaks`, `db/schema.ts` →
     `UserProtocol.breaks`): explicit off-week ranges (`{ weekStart, weekEnd,
     reason }`) where no doses are generated. Templates with break-aware cycling
