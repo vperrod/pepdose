@@ -5,6 +5,8 @@
 # account is blocked (Actions disabled account-wide, ticket 4583559).
 #
 # Usage: scripts/deploy.sh [--skip-tests]
+# Env: PEPDOSE_TARGET (rsync destination, default /srv/pepdose),
+#      PEPDOSE_URL (public URL shown at the end, default the claude-dev VM).
 #
 # Supabase config comes from .env.local (gitignored) — vite loads it
 # automatically. Both values are public-safe: the URL is public and the
@@ -16,6 +18,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 TARGET="${PEPDOSE_TARGET:-/srv/pepdose}"
+# Public URL printed after deploy; override together with PEPDOSE_TARGET for another environment.
+PUBLIC_URL="${PEPDOSE_URL:-https://claude-dev-vperrod.westeurope.cloudapp.azure.com/pepdose/}"
 
 [[ -r .env.local ]] || {
   echo "ERROR: .env.local missing — build would ship without Supabase config" >&2
@@ -66,7 +70,7 @@ printf '| %s | %s | %s |\n' \
   "$(git config user.name || whoami)" >> "$DEPLOY_LOG"
 
 echo
-echo "Deployed: https://claude-dev-vperrod.westeurope.cloudapp.azure.com/pepdose/"
+echo "Deployed: $PUBLIC_URL"
 echo "Logged to $DEPLOY_LOG — verify the change is live at that URL before moving on."
 if [[ -n "$SW_WARN" ]]; then
   echo "WARNING: public/sw.js changed but CACHE_NAME did not — installed clients" >&2
