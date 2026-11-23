@@ -31,6 +31,7 @@ const cloud = vi.hoisted(() => ({
   }[],
   upserted: [] as { kind: string; id: string; deleted: boolean }[],
   failKinds: new Set<string>(),
+  failUpserts: 0, // next N upsert calls return an error
   queriedSince: [] as (string | null)[],
   delayKinds: new Set<string>(),
   // Deterministic gate: when set, a kind in gateKinds awaits this promise before
@@ -68,6 +69,10 @@ vi.mock('./supabase', () => ({
         },
       }),
       upsert: async (rows: Envelope[]) => {
+        if (cloud.failUpserts > 0) {
+          cloud.failUpserts--;
+          return { error: new Error('upsert boom') };
+        }
         cloud.upserted.push(...rows);
         return { error: null };
       },
@@ -474,9 +479,65 @@ describe('syncNow', () => {
     cloud.remote = [];
     cloud.upserted = [];
     cloud.failKinds = new Set();
+    cloud.failUpserts = 0;
     cloud.queriedSince = [];
     cloud.gateKinds = new Set();
     cloud.gate = null;
+  });
+
+  it('a failed tombstone upsert keeps the ledger entry and the retry publishes it', async () => {
+    const db = await getDB();
+    await db.put('deletions', { id: 'gone', kind: 'protocols', deletedAt: '2026-07-17T00:00:00Z' });
+
+    cloud.failUpserts = 1;
+    const failed = await syncNow();
+    expect(failed?.errors).toHaveLength(1);
+    expect(await db.get('deletions', 'gone')).toBeDefined();
+
+    resetSyncCursor();
+    await syncNow();
+    expect(cloud.upserted.find((r) => r.id === 'gone')).toMatchObject({ deleted: true });
+    expect(await db.get('deletions', 'gone')).toBeUndefined();
+  });
+
+  it('a failed push does not advance the cursor, so the local row is pushed on the retry', async () => {
+    const db = await getDB();
+    await db.put('protocols', { id: 'p1', owner: 'Victor', updatedAt: '2026-07-01T00:00:00Z' });
+
+    cloud.failUpserts = 1;
+    await syncNow();
+    expect(cloud.upserted).toHaveLength(0);
+
+    await syncNow();
+    expect(cloud.upserted.map((r) => r.id)).toEqual(['p1']);
+  });
+
+  it('a remote kind larger than one page is pulled in full', async () => {
+    cloud.remote = Array.from({ length: 1001 }, (_, i) => ({
+      kind: 'protocols',
+      id: `r${String(i).padStart(4, '0')}`,
+      data: { id: `r${String(i).padStart(4, '0')}`, name: 'n', startDate: '2026-07-01', owner: 'Victor', updatedAt: '2026-07-01T00:00:00Z' },
+      updated_at: '2026-07-01T00:00:00Z',
+      deleted: false,
+    }));
+    const result = await syncNow();
+    expect(result?.pulled).toBe(1001);
+  });
+
+  it('the delta pass reaches back by the clock-skew margin and an hour later goes full again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-07-10T12:00:00Z'));
+      await syncNow();
+      vi.setSystemTime(new Date('2026-07-10T12:10:00Z'));
+      await syncNow();
+      expect(cloud.queriedSince[QUERIES_PER_PASS]).toBe('2026-07-10T11:55:00.000Z');
+      vi.setSystemTime(new Date('2026-07-10T13:01:00Z'));
+      await syncNow();
+      expect(cloud.queriedSince[2 * QUERIES_PER_PASS]).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('a fresh device first pull copies cloud rows locally and tombstones nothing', async () => {
