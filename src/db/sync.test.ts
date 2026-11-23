@@ -194,6 +194,11 @@ describe('planMerge invariant coverage / primary merge scenarios', () => {
     expect(localDelete).toEqual([]);
   });
 
+  it('remote row whose data.id differs from its row id is not pulled', () => {
+    const bad = { ...remote('a', '2024-01-01T00:00:00Z'), data: { id: 'other', createdAt: '2024-01-01T00:00:00Z' } };
+    expect(planMerge([], [bad]).localPut).toEqual([]);
+  });
+
   it('local row recreated after ledger delete -> ledgerResolved; row stays alive', () => {
     const local: Timestamped[] = [{ id: 'a', createdAt: '2024-06-01T00:00:00Z' }];
     const { push, localDelete, ledgerResolved } = planMerge(

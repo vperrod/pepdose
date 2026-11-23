@@ -70,7 +70,9 @@ export function planMerge(
   ledgerResolved: string[];
 } {
   const local = new Map(localRows.map((r) => [r.id, r]));
-  const remote = new Map(remoteRows.map((r) => [r.id, r]));
+  // A live row whose payload id differs from its row id would be written locally
+  // under another key (duplicate / overwrite), so it is ignored.
+  const remote = new Map(remoteRows.filter((r) => r.deleted || r.data?.id === r.id).map((r) => [r.id, r]));
   const ledger = new Map(localDeletions.map((d) => [d.id, d]));
   const ids = new Set<string>([...local.keys(), ...remote.keys(), ...ledger.keys()]);
   const now = Date.now();
