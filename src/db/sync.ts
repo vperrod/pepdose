@@ -213,6 +213,7 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
         pushTombstone: DeletionRecord[];
         ledgerResolved: string[];
         localTs: Map<string, number>;
+        cloudTs: Map<string, number>;
       }
     >();
 
@@ -267,6 +268,7 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
           plans.set(kind, {
             ...planMerge(localRows, remote, deletions),
             localTs: new Map(localRows.map((r) => [r.id, rowTs(r)])),
+            cloudTs: new Map(remote.map((r) => [r.id, remoteTs(r)])),
           });
         } catch (e) {
           const msg = `${kind}: ${e instanceof Error ? e.message : String(e)}`;
@@ -346,6 +348,9 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
         // Cloud jsonb is untrusted: a malformed row must not reach IndexedDB.
         try { validateRecord(kind, row); } catch { continue; }
         if (await editedSince(row.id)) continue;
+        // A row deleted mid-pass is simply missing, which editedSince can't see.
+        const deletion: DeletionRecord | undefined = await ledgerStore.get(row.id);
+        if (deletion && Date.parse(deletion.deletedAt) > plan.cloudTs.get(row.id)!) continue;
         await store.put(row);
         pulled++;
       }
@@ -359,6 +364,10 @@ export async function syncNow(): Promise<{ pushed: number; pulled: number; error
         ledgerDone.push(...plan.pushTombstone.map((d) => d.id));
       }
       for (const id of ledgerDone) {
+        // Only settle the entry this pass planned against: one written by a
+        // delete during the pass still has to be published.
+        const current: DeletionRecord | undefined = await ledgerStore.get(id);
+        if (current?.deletedAt !== allDeletions.find((d) => d.id === id)?.deletedAt) continue;
         await ledgerStore.delete(id);
       }
     }

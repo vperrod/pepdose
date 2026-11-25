@@ -883,6 +883,37 @@ describe('syncNow', () => {
     expect((await db.get('protocols', 'p1'))?.updatedAt).toBe(edited);
   });
 
+  it.each([
+    ['a pulled row', false],
+    ['a row carrying a stale ledger entry', true],
+  ])('a delete of %s landing mid-sync is not undone', async (_name, hasStaleEntry) => {
+    const ts = '2024-01-01T00:00:00Z';
+    cloud.remote = [{ kind: 'protocols', id: 'p1', data: { id: 'p1', name: 'P', startDate: '2024-01-01', updatedAt: ts } as { id: string }, updated_at: ts, deleted: false }];
+    const db = await getDB();
+    if (hasStaleEntry) {
+      await db.put('protocols', { id: 'p1', updatedAt: '2023-01-01T00:00:00Z' } as never);
+      await db.put('deletions', { id: 'p1', kind: 'protocols', deletedAt: '2022-01-01T00:00:00Z' });
+    }
+    let release!: () => void;
+    cloud.gate = new Promise<void>((r) => { release = r; });
+    cloud.gateKinds = new Set(['doseLogs']);
+
+    const background = syncNow();
+    await new Promise((r) => setTimeout(r, 5)); // let the pass snapshot local protocols
+    await db.delete('protocols', 'p1');
+    await db.put('deletions', { id: 'p1', kind: 'protocols', deletedAt: new Date().toISOString() });
+    release();
+    await background;
+    cloud.gate = null;
+    cloud.gateKinds = new Set();
+    await syncNow(); // the next pass must publish the delete, not pull the row back
+
+    expect({
+      row: await db.get('protocols', 'p1'),
+      tombstoned: cloud.upserted.some((r) => r.id === 'p1' && r.deleted),
+    }).toEqual({ row: undefined, tombstoned: true });
+  });
+
   it('suspendSync resolves when a follow-up pass was queued mid-pass', async () => {
     let release!: () => void;
     cloud.gate = new Promise<void>((r) => { release = r; });
