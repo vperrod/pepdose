@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { Syringe, Check, MapPin, Clock, Plus, X } from 'lucide-react';
 import { getScheduledDosesForDate, getDoseLogsForDate, getProtocols, logDose } from '../db/operations';
@@ -36,6 +36,8 @@ export function QuickLog() {
   const [showAdhoc, setShowAdhoc] = useState(false);
   const [adhocMsg, setAdhocMsg] = useState('');
   const [viewAdhocLog, setViewAdhocLog] = useState<DoseLog | null>(null);
+  const [logError, setLogError] = useState('');
+  const inFlight = useRef(new Set<string>());
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const applyOwnerFilter = useOwnerFilter();
@@ -66,24 +68,32 @@ export function QuickLog() {
   useEffect(() => { load(); }, [load]);
 
   async function handleLog(dose: QuickDose) {
-    if (logged.has(dose.id) || justLogged.has(dose.id)) return;
+    // The ref updates synchronously; state only changes after the save resolves.
+    if (inFlight.current.has(dose.id) || logged.has(dose.id) || justLogged.has(dose.id)) return;
+    inFlight.current.add(dose.id);
+    setLogError('');
 
-    const now = format(new Date(), 'HH:mm');
-    await logDose({
-      owner: dose.owner,
-      scheduledDoseId: dose.id,
-      protocolId: dose.protocolId,
-      peptideId: dose.peptideId,
-      date: today,
-      time: now,
-      dose: dose.dose,
-      unit: dose.unit,
-      route: dose.route,
-      injectionSite: dose.suggestedSite,
-    });
-
-    setJustLogged(prev => new Set(prev).add(dose.id));
-    setLogged(prev => new Set(prev).add(dose.id));
+    try {
+      await logDose({
+        owner: dose.owner,
+        scheduledDoseId: dose.id,
+        protocolId: dose.protocolId,
+        peptideId: dose.peptideId,
+        date: today,
+        time: format(new Date(), 'HH:mm'),
+        dose: dose.dose,
+        unit: dose.unit,
+        route: dose.route,
+        injectionSite: dose.suggestedSite,
+      });
+      setJustLogged(prev => new Set(prev).add(dose.id));
+      setLogged(prev => new Set(prev).add(dose.id));
+    } catch (e) {
+      setLogError(e instanceof Error ? e.message : 'Could not save — please try again.');
+      await load();
+    } finally {
+      inFlight.current.delete(dose.id);
+    }
   }
 
   const visible = applyOwnerFilter(doses);
@@ -112,6 +122,12 @@ export function QuickLog() {
           {pending.length ? `${pending.length} remaining today` : 'All done for today'}
         </p>
       </header>
+
+      {logError && (
+        <div role="alert" className="card-glass p-3 mb-3 border border-danger/40 text-sm text-danger">
+          {logError}
+        </div>
+      )}
 
       {pending.length > 0 && (
         <section className="mb-6">

@@ -120,6 +120,18 @@ describe('logDose / deleteDoseLog inventory round trip', () => {
     expect(vial.dosesRemaining).toBe(2);
   });
 
+  it('concurrent logs of one scheduled dose save once and draw down once', async () => {
+    await saveVial(baseVial);
+    await saveScheduledDoses([
+      { id: 'dup', protocolId: 'p1', peptideId: 'bpc-157', date: '2026-07-14', time: '08:00', dose: 250, unit: 'mcg', route: 'subq', status: 'upcoming', weekNumber: 1 },
+    ], 'Victor');
+    const entry = { ...baseLog, scheduledDoseId: 'dup' };
+    const results = await Promise.allSettled([logDose(entry), logDose(entry)]);
+    const [vial] = await getVials('bpc-157');
+    expect({ statuses: results.map(r => r.status), logs: (await getAllDoseLogs()).length, left: vial.dosesRemaining })
+      .toEqual({ statuses: ['fulfilled', 'rejected'], logs: 1, left: 2 });
+  });
+
   it('deleting the log actually removes it', async () => {
     await saveVial(baseVial);
     const log = await logDose(baseLog);

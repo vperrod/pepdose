@@ -309,13 +309,15 @@ export async function logDose(log: Omit<DoseLog, 'id' | 'createdAt'>): Promise<D
   // One transaction across all three stores so a thrown error can never leave
   // vial inventory desynced from logged history (a partial log with no draw-down).
   const tx = db.transaction(['doseLogs', 'scheduledDoses', 'vials'], 'readwrite');
-  void tx.objectStore('doseLogs').put(full);
 
   if (log.scheduledDoseId) {
     const doseStore = tx.objectStore('scheduledDoses');
     const existing = await doseStore.get(log.scheduledDoseId);
+    // Checked inside the tx, before any write, so concurrent calls can't both pass.
+    if (existing?.status === 'logged') throw new Error('This dose is already logged.');
     if (existing) void doseStore.put({ ...existing, status: 'logged', updatedAt: now });
   }
+  void tx.objectStore('doseLogs').put(full);
 
   // Draw down inventory for the peptide's active vial so "doses remaining"
   // and the run-out forecast actually track logged injections.
