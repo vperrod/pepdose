@@ -29,6 +29,34 @@ describe('titration dose scaling', () => {
   });
 });
 
+describe('titrated dose units', () => {
+  const PHASES = [{ weekStart: 1, weekEnd: 8, frequency: 'weekly' as const }];
+  const PATHS = [
+    { name: 'daily', frequency: 'daily' },
+    { name: 'eod', frequency: 'eod' },
+    { name: 'weekly', frequency: 'weekly' },
+    { name: 'weekly_days', frequency: 'weekly_days', daysOfWeek: [1] },
+    { name: 'phased', frequency: 'weekly', schedulePhases: PHASES },
+  ];
+
+  it.each(PATHS)('labels an mcg start dose in the ladder unit on the $name path', (path) => {
+    const doses = generateSchedule({ ...SEMA, ...path, dose: 250, unit: 'mcg' });
+    const ends = [doses[0], doses[doses.length - 1]].map(d => `${d.dose} ${d.unit}`);
+    expect(ends).toEqual(['0.25 mg', '0.5 mg']);
+  });
+
+  it('converts an mg start dose into an mcg ladder', () => {
+    // Kisspeptin ladder: wk1-2 = 100mcg, wk3-8 = 200mcg.
+    const doses = generateSchedule({ ...SEMA, peptideId: 'kisspeptin', dose: 0.1, unit: 'mg' });
+    expect(`${doses[0].dose} ${doses[0].unit}`).toBe('100 mcg');
+  });
+
+  it.each(PATHS)('keeps an IU dose flat on the $name path, since IU cannot convert to the ladder', (path) => {
+    const doses = generateSchedule({ ...SEMA, ...path, dose: 10, unit: 'IU' });
+    expect([...new Set(doses.map(d => `${d.dose} ${d.unit}`))]).toEqual(['10 IU']);
+  });
+});
+
 // Unknown peptide id -> no titration ladder, so frequency math is isolated.
 const PLAIN = {
   peptideId: 'no-such-peptide',

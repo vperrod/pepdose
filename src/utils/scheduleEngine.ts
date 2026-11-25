@@ -77,7 +77,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
   // custom-interval guard below).
   if (!(config.durationWeeks > 0)) return [];
 
-  const hasTitration = peptide?.dosing.titration && peptide.dosing.titration.length > 0;
+  const titration = titrationFor(peptide, config);
 
   let doseIndex = 0;
 
@@ -86,10 +86,10 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
     for (const day of days) {
       const weekNum = weekNumberOf(day, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) continue;
-      const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
-      const currentUnit = hasTitration ? (peptide!.dosing.titration![0].unit) : config.unit;
-      const prevWeekDose = hasTitration && weekNum > 1 ? getTitrationDose(peptide!, weekNum - 1, config.dose) : currentDose;
-      const isStepUp = hasTitration && currentDose !== prevWeekDose && day.getDay() === startDate.getDay();
+      const currentDose = titration ? titration.doseAt(weekNum) : config.dose;
+      const currentUnit = titration ? titration.unit : config.unit;
+      const prevWeekDose = titration && weekNum > 1 ? titration.doseAt(weekNum - 1) : currentDose;
+      const isStepUp = !!titration && currentDose !== prevWeekDose && day.getDay() === startDate.getDay();
 
       const timesPerDay = config.timesPerDay || 1;
       for (let t = 0; t < timesPerDay; t++) {
@@ -119,7 +119,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
     while (isBefore(current, endDate)) {
       const weekNum = weekNumberOf(current, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) { current = addDays(current, 2); continue; }
-      const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
+      const currentDose = titration ? titration.doseAt(weekNum) : config.dose;
 
       doses.push({
         id: generateId(),
@@ -128,7 +128,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
         date: format(current, 'yyyy-MM-dd'),
         time: timeStr,
         dose: currentDose,
-        unit: config.unit,
+        unit: titration ? titration.unit : config.unit,
         route: peptide?.route || 'subq',
         status: 'upcoming',
         suggestedSite: suggestSite(doseIndex),
@@ -142,9 +142,9 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
     while (isBefore(current, endDate)) {
       const weekNum = weekNumberOf(current, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) { current = addDays(current, 7); continue; }
-      const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
-      const currentUnit = hasTitration ? (peptide!.dosing.titration![0].unit) : config.unit;
-      const prevWeekDose = weekNum > 1 && hasTitration ? getTitrationDose(peptide!, weekNum - 1, config.dose) : currentDose;
+      const currentDose = titration ? titration.doseAt(weekNum) : config.dose;
+      const currentUnit = titration ? titration.unit : config.unit;
+      const prevWeekDose = weekNum > 1 && titration ? titration.doseAt(weekNum - 1) : currentDose;
 
       doses.push({
         id: generateId(),
@@ -212,9 +212,9 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
       if (!config.daysOfWeek.includes(day.getDay())) continue;
       const weekNum = weekNumberOf(day, startDate);
       if (isInBreak(weekNum, config.protocolBreaks)) continue;
-      const currentDose = hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose;
-      const currentUnit = hasTitration ? (peptide!.dosing.titration![0].unit) : config.unit;
-      const prevWeekDose = hasTitration && weekNum > 1 ? getTitrationDose(peptide!, weekNum - 1, config.dose) : currentDose;
+      const currentDose = titration ? titration.doseAt(weekNum) : config.dose;
+      const currentUnit = titration ? titration.unit : config.unit;
+      const prevWeekDose = titration && weekNum > 1 ? titration.doseAt(weekNum - 1) : currentDose;
 
       doses.push({
         id: generateId(),
@@ -227,7 +227,7 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
         route: peptide?.route || 'subq',
         status: 'upcoming',
         suggestedSite: suggestSite(doseIndex),
-        isTitrationStepUp: hasTitration && currentDose !== prevWeekDose,
+        isTitrationStepUp: !!titration && currentDose !== prevWeekDose,
         weekNumber: weekNum,
       });
       doseIndex++;
@@ -256,6 +256,21 @@ export function generateSchedule(input: ScheduleConfig): DraftDose[] {
   }
 
   return doses;
+}
+
+const MCG_PER_UNIT = { mcg: 1, mg: 1000 } as const;
+
+/** The one unit rule for titrated schedules: the start dose is converted into the ladder's unit before it scales
+ *  the ladder. A unit that cannot convert (IU) gets no ladder, so the typed dose and unit are kept as they are. */
+function titrationFor(peptide: Peptide | undefined, config: ScheduleConfig) {
+  const unit = peptide?.dosing.titration?.[0]?.unit;
+  if (!peptide || !unit) return null;
+  let startDose = config.dose;
+  if (config.unit !== unit) {
+    if (config.unit === 'IU' || unit === 'IU') return null;
+    startDose = (config.dose * MCG_PER_UNIT[config.unit]) / MCG_PER_UNIT[unit];
+  }
+  return { unit, doseAt: (week: number) => getTitrationDose(peptide, week, startDose) };
 }
 
 function getTitrationDose(peptide: Peptide, weekNumber: number, startDose?: number): number {
@@ -290,7 +305,7 @@ function generatePhasedSchedule(config: ScheduleConfig, peptide: Peptide | undef
   // start-after-end range and throws (mirrors the flat-path guard above).
   if (!(totalWeeks > 0)) return [];
   const days = eachDayOfInterval({ start: startDate, end: addDays(addWeeks(startDate, totalWeeks), -1) });
-  const hasTitration = !!peptide?.dosing.titration && peptide.dosing.titration.length > 0;
+  const titration = titrationFor(peptide, config);
 
   const doses: DraftDose[] = [];
   let doseIndex = 0;
@@ -321,8 +336,8 @@ function generatePhasedSchedule(config: ScheduleConfig, peptide: Peptide | undef
       peptideId: config.peptideId,
       date: format(day, 'yyyy-MM-dd'),
       time: timeStr,
-      dose: hasTitration ? getTitrationDose(peptide!, weekNum, config.dose) : config.dose,
-      unit: hasTitration ? peptide!.dosing.titration![0].unit : config.unit,
+      dose: titration ? titration.doseAt(weekNum) : config.dose,
+      unit: titration ? titration.unit : config.unit,
       route: peptide?.route || 'subq',
       status: 'upcoming',
       suggestedSite: peptide?.route === 'subq' || peptide?.route === 'im' ? suggestSite(doseIndex) : undefined,
