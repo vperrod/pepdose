@@ -30,6 +30,7 @@ import { ViewFilterProvider } from './context/ViewFilterContext';
 import { UserFilterChip } from './components/UserFilterChip';
 import { AuthGate } from './components/AuthGate';
 import { initReminders } from './utils/notifications';
+import { whenIdle } from './utils/whenIdle';
 import { repairDuplicateScheduledDoses, repairEmptyFiveDayProtocols } from './db/operations';
 
 export default function App() {
@@ -47,9 +48,10 @@ function AppInner({ onboarded, setOnboarded }: { onboarded: boolean; setOnboarde
     if (!onboarded) return;
     // Clear schedules the old sync bug duplicated. Idempotent: once a device is
     // clean this finds nothing, and the fix in db/sync.ts stops it recurring.
-    void repairDuplicateScheduledDoses().then(n => {
+    // Runs on every start, not once: sync can bring duplicates in at any time.
+    whenIdle(() => void repairDuplicateScheduledDoses().then(n => {
       if (n > 0) console.info(`[pepdose] removed ${n} duplicate scheduled dose(s)`);
-    });
+    }));
     void repairEmptyFiveDayProtocols();
     return initReminders();
   }, [onboarded]);
