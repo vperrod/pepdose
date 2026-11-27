@@ -370,6 +370,31 @@ describe('validateImport', () => {
   });
 });
 
+describe('validateImport shapes and allowed values', () => {
+  const protocol = { id: 'p1', name: 'T', startDate: '2026-07-01' };
+  const dose = { id: 's1', protocolId: 'p1', peptideId: 'bpc-157', date: '2026-07-15' };
+  const log = { id: 'l1', peptideId: 'bpc-157', date: '2026-07-15' };
+
+  it.each([
+    ['protocols', { ...protocol, doses: 'nope' }],
+    ['protocols', { ...protocol, doses: [null] }],
+    ['protocols', { ...protocol, peptideIds: 'bpc-157' }],
+    ['protocols', { ...protocol, peptideIds: [7] }],
+    ['protocols', { ...protocol, breaks: {} }],
+    ['protocols', { ...protocol, breaks: [null] }],
+    ['protocols', { ...protocol, status: 'hacked' }],
+    ['protocols', { ...protocol, doses: [{ peptideId: 'bpc-157', unit: 'g' }] }],
+    ['scheduledDoses', { ...dose, status: 'hacked' }],
+    ['scheduledDoses', { ...dose, unit: 'g' }],
+    ['doseLogs', { ...log, unit: 'g' }],
+    ['doseLogs', { ...log, symptoms: 'nausea' }],
+    ['doseLogs', { ...log, symptoms: [null] }],
+    ['vials', { id: 'v1', peptideId: 'bpc-157', status: 'hacked' }],
+  ])('rejects a malformed %s row: %j', (store, row) => {
+    expect(() => validateImport({ [store]: [row] })).toThrow(store);
+  });
+});
+
 describe('exportAllData', () => {
   it('scopes every store to the active profile so a backup cannot carry the other profile', async () => {
     await saveVial(baseVial);

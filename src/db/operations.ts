@@ -493,6 +493,31 @@ const IMPORT_NUMERIC: Record<(typeof IMPORT_STORES)[number], string[]> = {
   healthMarkers: ['weight', 'bodyFatPct', 'bloodPressureSys', 'bloodPressureDia', 'restingHR', 'fastingGlucose', 'mood', 'energy', 'sleepQuality'],
 };
 
+// Allowed values of the enum fields (from schema.ts); absent stays legal.
+const IMPORT_STATUS: Partial<Record<(typeof IMPORT_STORES)[number], string[]>> = {
+  protocols: ['active', 'paused', 'completed', 'archived'],
+  scheduledDoses: ['upcoming', 'logged', 'missed', 'skipped'],
+  vials: ['unreconstituted', 'active', 'empty', 'expired'],
+};
+const IMPORT_UNITS = ['mcg', 'mg', 'IU'];
+
+function assertOneOf(value: unknown, allowed: string[], label: string): void {
+  if (value !== undefined && !allowed.includes(value as string)) {
+    throw new Error(`${label} entry has invalid value: ${String(value)}`);
+  }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** An optional list field: when present it must be an array whose every entry passes. */
+function optionalList<T>(value: unknown, isEntry: (v: unknown) => v is T, label: string): T[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.every(isEntry)) throw new Error(`${label} is malformed`);
+  return value;
+}
+
 function assertNumericFields(rec: Record<string, unknown>, fields: string[], label: string): void {
   for (const field of fields) {
     if (rec[field] !== undefined && !Number.isFinite(rec[field])) {
@@ -504,10 +529,10 @@ function assertNumericFields(rec: Record<string, unknown>, fields: string[], lab
 /** Shape check for one record of a store; throws on a malformed row. Shared by
  *  backup import and cloud pull so both entry points enforce the same rules. */
 export function validateRecord(storeName: (typeof IMPORT_STORES)[number], item: unknown): void {
-  if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+  if (!isObject(item)) {
     throw new Error(`${storeName} contains a non-object entry`);
   }
-  const rec = item as Record<string, unknown>;
+  const rec = item;
   for (const field of ['id', ...IMPORT_REQUIRED[storeName]]) {
     if (typeof rec[field] !== 'string' || rec[field] === '') {
       throw new Error(`${storeName} entry missing required field: ${field}`);
@@ -517,26 +542,30 @@ export function validateRecord(storeName: (typeof IMPORT_STORES)[number], item: 
   if (rec.owner !== undefined && !USERS.includes(rec.owner as UserName)) {
     throw new Error(`${storeName} entry has unknown owner: ${rec.owner}`);
   }
-  // Nested numeric fields the top-level table can't reach: a protocol's
-  // per-peptide dose configs (feed pen clicks / schedule math) and a dose
-  // log's symptom severities (feed the symptom-trend charts).
-  if (storeName === 'protocols' && Array.isArray(rec.doses)) {
-    for (const d of rec.doses) {
-      if (typeof d !== 'object' || d === null) continue;
-      const cfg = d as Record<string, unknown>;
+  const statuses = IMPORT_STATUS[storeName];
+  if (statuses) assertOneOf(rec.status, statuses, `${storeName} status`);
+  if (storeName === 'scheduledDoses' || storeName === 'doseLogs') {
+    assertOneOf(rec.unit, IMPORT_UNITS, `${storeName} unit`);
+  }
+  // Nested fields the top-level tables can't reach: a protocol's per-peptide
+  // dose configs (feed pen clicks / schedule math) and a dose log's symptom
+  // severities (feed the symptom-trend charts).
+  if (storeName === 'protocols') {
+    optionalList(rec.peptideIds, (v): v is string => typeof v === 'string', 'protocols peptideIds');
+    optionalList(rec.breaks, isObject, 'protocols breaks');
+    for (const cfg of optionalList(rec.doses, isObject, 'protocols doses')) {
+      assertOneOf(cfg.unit, IMPORT_UNITS, 'protocols doses unit');
       assertNumericFields(cfg, ['dose', 'timesPerDay', 'durationWeeks', 'customFrequencyDays'], 'protocols doses');
-      if (typeof cfg.recon === 'object' && cfg.recon !== null) {
-        assertNumericFields(cfg.recon as Record<string, unknown>, ['vialAmount', 'bacWaterMl'], 'protocols doses recon');
+      if (isObject(cfg.recon)) {
+        assertNumericFields(cfg.recon, ['vialAmount', 'bacWaterMl'], 'protocols doses recon');
       }
     }
   }
-  if (storeName === 'doseLogs' && Array.isArray(rec.symptoms)) {
-    for (const s of rec.symptoms) {
-      if (typeof s !== 'object' || s === null) continue;
-      assertNumericFields(s as Record<string, unknown>, ['severity'], 'doseLogs symptoms');
+  if (storeName === 'doseLogs') {
+    for (const symptom of optionalList(rec.symptoms, isObject, 'doseLogs symptoms')) {
+      assertNumericFields(symptom, ['severity'], 'doseLogs symptoms');
     }
   }
-
 }
 
 /** Validates a parsed backup's shape. Throws (before any write) on anything
